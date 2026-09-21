@@ -4,22 +4,14 @@ import { useState, useEffect } from "react";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, User, AlertTriangle } from "lucide-react";
+import { Lock, User } from "lucide-react";
 import { toast } from "sonner";
-
-const MAX_FAILED_ATTEMPTS = 5;
 
 export function LoginStub() {
   const [employeeId, setEmployeeId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [now, setNow] = useState(0);
-  const login = useDomainStore((s) => s.login);
-  const isLocked = useDomainStore((s) => s.isLocked());
-  const getRemainingAttempts = useDomainStore((s) => s.getRemainingAttempts);
-  const lockUntil = useDomainStore((s) => s.lockUntil);
-
-  const remaining = getRemainingAttempts();
+  const hydrateSession = useDomainStore((s) => s.hydrateSession);
 
   useEffect(() => {
     if (error) {
@@ -28,41 +20,34 @@ export function LoginStub() {
     }
   }, [error]);
 
-  useEffect(() => {
-    if (!isLocked) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [isLocked]);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const result = login(employeeId, pin);
-    if (result.success) {
-      toast.success("Login successful");
-    } else {
-      toast.error(result.message);
-    }
-  }
-
-  const minutesLeft = lockUntil ? Math.ceil((lockUntil - now) / 60000) : 0;
-
-  if (isLocked && lockUntil && minutesLeft > 0) {
-    return (
-      <div className="flex items-center justify-center min-h-full">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center">
-              <AlertTriangle className="h-12 w-12 text-amber mx-auto" />
-            </div>
-            <h1 className="text-2xl font-bold text-ink">Account Locked</h1>
-            <p className="text-sm text-ink-soft">
-              Too many failed attempts. Please try again in {minutesLeft} minute{minutesLeft !== 1 ? "s" : ""}.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId, pin }),
+        });
+        const result = await response.json() as { message?: string; employee?: {
+          employee_id: string;
+          name: string;
+          role: string;
+          status: string;
+          base_branch: string;
+        } };
+        if (!response.ok || !result.employee) {
+          throw new Error(result.message || "Unable to sign in");
+        }
+        hydrateSession(result.employee);
+        toast.success("Login successful");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to sign in";
+        setError(message);
+        toast.error(message);
+      }
+    })();
   }
 
   return (
@@ -103,10 +88,6 @@ export function LoginStub() {
             </div>
           </div>
 
-          {remaining < MAX_FAILED_ATTEMPTS && remaining > 0 && (
-            <p className="text-xs text-amber">{remaining} attempt{remaining !== 1 ? "s" : ""} remaining</p>
-          )}
-
           {error && <p className="text-sm text-rose">{error}</p>}
 
           <Button type="submit" className="w-full">
@@ -114,9 +95,7 @@ export function LoginStub() {
           </Button>
         </form>
 
-        <p className="text-xs text-mist text-center">
-          Demo: use emp_001 / 1234 or emp_002 / 1234
-        </p>
+        <p className="text-xs text-mist text-center">Use your assigned employee ID and PIN.</p>
       </div>
     </div>
   );

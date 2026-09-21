@@ -8,14 +8,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExternalLink, Lock } from "lucide-react";
 import { toast } from "sonner";
 
-export default function AppIdPage({ params }: { params: { appId: string } }) {
+export default function AppIdPage({ params }: { params: Promise<{ appId: string }> }) {
   const router = useRouter();
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
   const getSession = useDomainStore((s) => s.getSession);
   const [tick, setTick] = useState(0);
+  const [appId, setAppId] = useState<string | null>(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const session = useMemo(() => getSession(), [getSession, tick]);
+
+  useEffect(() => {
+    params.then((p) => setAppId(p.appId.toUpperCase()));
+  }, [params]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -26,7 +31,6 @@ export default function AppIdPage({ params }: { params: { appId: string } }) {
 
   const sessionValid = session.isValid;
   const accessibleApps = isAuthenticated ? getAccessibleApps() : [];
-  const appId = params.appId.toUpperCase();
 
   useEffect(() => {
     if (!isAuthenticated || !sessionValid) {
@@ -41,30 +45,30 @@ export default function AppIdPage({ params }: { params: { appId: string } }) {
     }
   }, [sessionValid, isAuthenticated, router]);
 
-  const app = accessibleApps.find((a) => a.app_id === appId);
-
-  if (!isAuthenticated || !sessionValid) {
+  if (!appId || !isAuthenticated || !sessionValid) {
     return null;
   }
+
+  const currentApp = accessibleApps.find((a) => a.app_id === appId);
 
   return (
     <AppShell>
       <div className="flex flex-col items-center justify-center h-full space-y-4">
-        {app && app.status === "ACTIVE" ? (
+        {currentApp && currentApp.status === "ACTIVE" ? (
           <div className="text-center space-y-4">
             <Card className="max-w-sm">
               <CardHeader>
-                <CardTitle className="text-lg">{app.name}</CardTitle>
+                <CardTitle className="text-lg">{currentApp.name}</CardTitle>
               </CardHeader>
               <CardContent className="flex justify-center">
                 <a
-                  href={app.url}
+                  href={currentApp.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  Open {app.name}
+                  Open {currentApp.name}
                 </a>
               </CardContent>
             </Card>

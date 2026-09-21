@@ -168,9 +168,14 @@ src/
 
 ## Data & Persistence
 
-This project uses **Zustand with localStorage persistence**. There is no backend. All data (employees, roles, permissions, apps, audit logs, sessions) is stored in the browser's localStorage.
+The MVP uses server-side Supabase persistence for employee identity, roles, permissions,
+sessions, and audit data. The Google Spreadsheet Registry is read server-side through a
+service account. Zustand is retained only for non-sensitive UI/cache state; PINs, service
+role keys, and session secrets must never be stored in browser localStorage.
 
-To reset the app to its initial state, clear `mochikin-domain-storage` from your browser's localStorage.
+Copy `.env.example` to `.env.local` and configure the server-only credentials before
+running the application. Apply `supabase/migrations/001_launcher_mvp.sql` before using
+the server login route.
 
 ## Design Tokens
 

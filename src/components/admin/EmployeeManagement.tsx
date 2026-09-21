@@ -84,7 +84,7 @@ export function EmployeeManagement() {
               </SelectTrigger>
               <SelectContent>
                 {roles.map((r) => (
-                  <SelectItem key={r.role_id} value={r.name}>{r.name}</SelectItem>
+                  <SelectItem key={r.role_id} value={r.role_id}>{r.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

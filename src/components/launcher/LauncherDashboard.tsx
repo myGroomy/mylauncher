@@ -7,13 +7,31 @@ import { ExternalLink, Lock } from "lucide-react";
 import { Profile } from "@/components/auth/Profile";
 import { WorkContextWidget } from "@/components/launcher/WorkContextWidget";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function LauncherDashboard() {
   const apps = useDomainStore((s) => s.apps);
   const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
+  const setApps = useDomainStore((s) => s.setApps);
+  const [registryError, setRegistryError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    void fetch("/api/registry")
+      .then(async (response) => {
+        const result = await response.json() as { apps?: App[]; message?: string };
+        if (!response.ok || !result.apps) throw new Error(result.message || "Application registry unavailable");
+        if (!cancelled) setApps(result.apps);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setRegistryError(error instanceof Error ? error.message : "Application registry unavailable");
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, setApps]);
 
   const displayApps = isAuthenticated ? getAccessibleApps() : apps;
 
@@ -45,6 +63,7 @@ export function LauncherDashboard() {
             : "Sign in to see your available apps"}
         </p>
       </div>
+      {registryError && <p className="text-sm text-rose">{registryError}</p>}
 
       {displayApps.length === 0 ? (
         <div className="flex items-center justify-center h-64 rounded-lg border border-dashed border-hairline">

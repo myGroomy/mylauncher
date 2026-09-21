@@ -65,7 +65,12 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Clock className="h-3 w-3 text-ink-soft" />
               <span className="text-xs font-mono text-ink-soft">{minutesLeft}m</span>
             </div>
-            <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => { toast.info("Signed out"); logout(); broadcastLogout(); }}>
+            <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => {
+              void fetch("/api/auth/logout", { method: "POST" });
+              toast.info("Signed out");
+              logout();
+              broadcastLogout();
+            }}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

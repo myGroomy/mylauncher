@@ -37,6 +37,8 @@ interface DomainState extends AuthState {
   auditLog: AuditLogEntry[];
 
   login: (employeeId: string, pin: string) => { success: boolean; message: string };
+  hydrateSession: (employee: Employee) => void;
+  setApps: (apps: App[]) => void;
   logout: () => void;
   getAccessibleApps: () => App[];
   getSession: () => { token: string | null; expiresAt: number | null; isValid: boolean };
@@ -193,6 +195,21 @@ export const useDomainStore = create<DomainState>()(
         return { success: true, message: "Login successful" };
       },
 
+      hydrateSession: (employee) => {
+        set({
+          isAuthenticated: true,
+          employeeId: employee.employee_id,
+          activeEmployee: employee,
+          sessionToken: "server-session",
+          sessionExpiry: Date.now() + SESSION_DURATION_MS,
+          employees: get().employees.some((item) => item.employee_id === employee.employee_id)
+            ? get().employees.map((item) => item.employee_id === employee.employee_id ? { ...item, ...employee } : item)
+            : [...get().employees, employee],
+        });
+      },
+
+      setApps: (apps) => set({ apps }),
+
       logout: () => {
         const state = get();
         set({ isAuthenticated: false, employeeId: null, activeEmployee: null, sessionToken: null, sessionExpiry: null, auditLog: addLog(state, "LOGOUT", state.employeeId, "Session terminated") });
@@ -206,7 +223,7 @@ export const useDomainStore = create<DomainState>()(
       getAccessibleApps: () => {
         const { activeEmployee, roles, apps } = get();
         if (!activeEmployee) return [];
-        const role = roles.find((r) => r.name === activeEmployee.role);
+        const role = roles.find((r) => r.role_id === activeEmployee.role);
         if (!role) return [];
         const allowedKeys = role.permissions;
         return apps.filter((app) => app.status === "ACTIVE" && allowedKeys.includes(app.required_permission));

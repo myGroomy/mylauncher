@@ -8,8 +8,27 @@ const LOGOUT_EVENT = "mochikin-logout";
 export function useSessionSync() {
   const logout = useDomainStore((s) => s.logout);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
+  const hydrateSession = useDomainStore((s) => s.hydrateSession);
+  const getEmployeeById = useDomainStore((s) => s.getEmployeeById);
 
   useEffect(() => {
+    void fetch("/api/auth/session")
+      .then(async (response) => {
+        if (!response.ok) {
+          if (isAuthenticated) logout();
+          return;
+        }
+        const result = await response.json() as { session?: {
+          employeeId: string;
+          roleId: string;
+        } };
+        const employee = result.session?.employeeId ? getEmployeeById(result.session.employeeId) : undefined;
+        if (employee) hydrateSession({ ...employee, role: result.session?.roleId || employee.role });
+      })
+      .catch(() => {
+        if (isAuthenticated) logout();
+      });
+
     function handleStorage(e: StorageEvent) {
       if (e.key === "mochikin-domain-storage") {
         const next = e.newValue;
@@ -39,7 +58,7 @@ export function useSessionSync() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(LOGOUT_EVENT, handleBroadcast);
     };
-  }, [logout, isAuthenticated]);
+  }, [logout, isAuthenticated, hydrateSession, getEmployeeById]);
 }
 
 export function broadcastLogout() {

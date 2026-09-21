@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -29,22 +30,24 @@ export function AppSwitcher() {
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Applications</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {apps.length === 0 ? (
-          <DropdownMenuItem disabled>No apps available</DropdownMenuItem>
-        ) : (
-          apps.map((app) => (
-            <DropdownMenuItem
-              key={app.app_id}
-              onClick={() => router.push(`/launcher/${app.app_id.toLowerCase()}`)}
-              className="flex items-center justify-between cursor-pointer"
-            >
-              <span>{app.name}</span>
-              <ExternalLink className="h-3 w-3 text-mist" />
-            </DropdownMenuItem>
-          ))
-        )}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Applications</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {apps.length === 0 ? (
+            <DropdownMenuItem disabled>No apps available</DropdownMenuItem>
+          ) : (
+            apps.map((app) => (
+              <DropdownMenuItem
+                key={app.app_id}
+                onClick={() => router.push(`/launcher/${app.app_id.toLowerCase()}`)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <span>{app.name}</span>
+                <ExternalLink className="h-3 w-3 text-mist" />
+              </DropdownMenuItem>
+            ))
+          )}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
