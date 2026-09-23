@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { App, AppStatus } from "@/lib/types";
+import { APP_REGISTRY } from "@/lib/constants";
 import { appendRow, deleteRowByIndex, ensureSheet, readSheet, rowsToObjects, updateRowByIndex } from "./sheets";
 import { ensureLauncherTabs, TABS } from "./data";
 
@@ -13,9 +14,10 @@ async function resolveRegistryTab(): Promise<string | null> {
   try {
     const meta = await sheets.getSheets().spreadsheets.get({ spreadsheetId: sheets.spreadsheetId() });
     const titles = (meta.data.sheets || []).map((s) => s.properties?.title || "");
+    const known = new Set(Object.values(TABS) as string[]);
     const match =
       titles.find((t) => REGISTRY_CANDIDATES.includes(t)) ||
-      titles.find((t) => /app|registry/i.test(t) && t !== TABS.employees && t !== TABS.roles && t !== TABS.permissions && t !== TABS.audit && t !== TABS.sessions);
+      titles.find((t) => /app|registry/i.test(t) && !known.has(t));
     return match || null;
   } catch {
     return null;
@@ -30,8 +32,8 @@ export async function getRegistryTab(): Promise<string> {
   await ensureLauncherTabs();
   const tab = await resolveRegistryTab();
   if (tab) return tab;
-  await ensureSheet("Apps", REGISTRY_HEADERS);
-  return "Apps";
+  await ensureSheet(TABS.apps, REGISTRY_HEADERS);
+  return TABS.apps;
 }
 
 function mapApp(row: Record<string, string>): App {
@@ -49,14 +51,18 @@ export async function getRegistryApps(): Promise<App[]> {
   if (cached && cached.expiresAt > Date.now()) return cached.apps;
   await ensureLauncherTabs();
   const tab = await getRegistryTab();
-  const rows = await readSheet(tab);
-  const objects = rowsToObjects(rows);
-  if (objects.length === 0) {
-    cached = { expiresAt: Date.now() + 60_000, apps: [] };
-    return [];
+  let rows = await readSheet(tab);
+  let objects = rowsToObjects(rows);
+  const hasData = objects.some((row) => String(row.app_id || "").trim() !== "");
+  if (!hasData) {
+    // Seed PRD default apps (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) once empty.
+    for (const app of APP_REGISTRY) {
+      await appendRow(tab, appRow(app));
+    }
+    rows = await readSheet(tab);
+    objects = rowsToObjects(rows);
   }
-
-  const apps = objects.filter((row) => row.app_id).map(mapApp);
+  const apps = objects.filter((row) => String(row.app_id || "").trim() !== "").map(mapApp);
   cached = { expiresAt: Date.now() + 60_000, apps };
   return apps;
 }
@@ -86,10 +92,6 @@ export async function createRegistryApp(input: Partial<App> & { name: string; ur
     required_permission: input.required_permission,
   };
   const tab = await getRegistryTab();
-  const { rows } = await readRegistryRows();
-  if (rows.length === 0) {
-    await ensureSheet(tab, REGISTRY_HEADERS);
-  }
   await appendRow(tab, appRow(app));
   invalidateRegistryCache();
   return { success: true, message: "App created", app };

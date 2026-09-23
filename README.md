@@ -180,10 +180,11 @@ src/
 The app runs in full Google Sheets mode: employee identity, roles, permissions, audit
 logs, sessions, and the app registry all live in one spreadsheet (multi-tab: `Employees`,
 `Roles`, `Permissions`, `AuditLogs`, `Sessions`, plus the registry tab). Access is
-server-side via a Google service account. Default roles/permissions seed automatically on
-first login (`seedDefaultAuthData`). Zustand is retained only for non-sensitive UI/cache
-state; PINs, service account keys, and session secrets must never be stored in browser
-localStorage.
+server-side via a Google service account. Default roles, permissions, demo employees
+(`emp_001`/`emp_002`/`emp_003`, PIN `1234`), and app registry seed automatically on first
+login (`seedDefaultAuthData` / empty registry). Zustand is retained only for non-sensitive
+UI/cache state; PINs, service account keys, and session secrets must never be stored in
+browser localStorage.
 
 Copy `.env.example` to `.env.local` and configure server-only credentials before running
 the application. Share the spreadsheet with the service account email as **Editor**

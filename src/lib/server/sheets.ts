@@ -36,12 +36,20 @@ export async function ensureSheet(title: string, headers: string[]): Promise<voi
   const id = spreadsheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const existing = meta.data.sheets?.find((s) => s.properties?.title === title);
-  const wasCreated = !existing;
-  if (wasCreated) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: id,
-      requestBody: { requests: [{ addSheet: { properties: { title } } }] },
-    });
+  let wasCreated = false;
+  if (!existing) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { requests: [{ addSheet: { properties: { title } } }] },
+      });
+      wasCreated = true;
+    } catch (error) {
+      // Concurrent create (e.g. parallel first-login requests) — tolerate "already exists".
+      const again = await sheets.spreadsheets.get({ spreadsheetId: id });
+      if (again.data.sheets?.find((s) => s.properties?.title === title)) return;
+      throw error;
+    }
   }
   if (!wasCreated) return;
   const endCol = headers.length <= 26

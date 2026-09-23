@@ -10,6 +10,7 @@ export const TABS = {
   permissions: "Permissions",
   audit: "AuditLogs",
   sessions: "Sessions",
+  apps: "Apps",
 } as const;
 
 const EMPLOYEE_HEADERS = [
@@ -33,6 +34,7 @@ const SESSION_HEADERS = [
   "expires_at",
   "revoked_at",
 ];
+const APP_HEADERS = ["app_id", "name", "url", "icon", "status", "required_permission"];
 
 export interface SheetEmployee {
   employee_id: string;
@@ -79,16 +81,33 @@ const DEFAULT_PERMISSIONS: Permission[] = [
   { permission_id: "perm_manage_admin", key: "manage_admin", description: "Manage admin panel" },
 ];
 
+/** Demo accounts matching README; PIN 1234 — hashed on seed. */
+const DEMO_EMPLOYEES = [
+  { employee_id: "emp_001", name: "Admin User", role_id: "role_admin", base_branch: "branch_cibiru", pin: "1234" },
+  { employee_id: "emp_002", name: "Regular User", role_id: "role_user", base_branch: "branch_antapani", pin: "1234" },
+  { employee_id: "emp_003", name: "Read Only", role_id: "role_viewer", base_branch: "branch_cimahi", pin: "1234" },
+];
+
 let seeded = false;
+let ensurePromise: Promise<void> | null = null;
 
 export async function ensureLauncherTabs(): Promise<void> {
   if (seeded) return;
-  await ensureSheet(TABS.employees, EMPLOYEE_HEADERS);
-  await ensureSheet(TABS.roles, ROLE_HEADERS);
-  await ensureSheet(TABS.permissions, PERMISSION_HEADERS);
-  await ensureSheet(TABS.audit, AUDIT_HEADERS);
-  await ensureSheet(TABS.sessions, SESSION_HEADERS);
-  seeded = true;
+  if (!ensurePromise) {
+    ensurePromise = (async () => {
+      await ensureSheet(TABS.employees, EMPLOYEE_HEADERS);
+      await ensureSheet(TABS.roles, ROLE_HEADERS);
+      await ensureSheet(TABS.permissions, PERMISSION_HEADERS);
+      await ensureSheet(TABS.audit, AUDIT_HEADERS);
+      await ensureSheet(TABS.sessions, SESSION_HEADERS);
+      await ensureSheet(TABS.apps, APP_HEADERS);
+      seeded = true;
+    })().catch((error) => {
+      ensurePromise = null;
+      throw error;
+    });
+  }
+  return ensurePromise;
 }
 
 export function hashPin(pin: string): string {
@@ -489,18 +508,49 @@ export async function revokeSessionsForEmployee(employeeId: string): Promise<num
 
 // ── Seed defaults when empty ───────────────────────────────
 
+let seedPromise: Promise<void> | null = null;
+
 export async function seedDefaultAuthData(): Promise<void> {
-  await ensureLauncherTabs();
-  const roles = await listRoles();
-  if (roles.length === 0) {
-    for (const role of DEFAULT_ROLES) {
-      await appendRow(TABS.roles, [role.role_id, role.name, role.permissions.join(",")]);
+  if (seedPromise) return seedPromise;
+  seedPromise = (async () => {
+    await ensureLauncherTabs();
+    const roles = await listRoles();
+    if (roles.length === 0) {
+      for (const role of DEFAULT_ROLES) {
+        await appendRow(TABS.roles, [role.role_id, role.name, role.permissions.join(",")]);
+      }
     }
-  }
-  const perms = await listPermissions();
-  if (perms.length === 0) {
-    for (const p of DEFAULT_PERMISSIONS) {
-      await appendRow(TABS.permissions, [p.permission_id, p.key, p.description]);
+    const perms = await listPermissions();
+    if (perms.length === 0) {
+      for (const p of DEFAULT_PERMISSIONS) {
+        await appendRow(TABS.permissions, [p.permission_id, p.key, p.description]);
+      }
     }
+    const employees = await listEmployees();
+    if (employees.length === 0) {
+      for (const e of DEMO_EMPLOYEES) {
+        await appendRow(TABS.employees, employeeRow({
+          employee_id: e.employee_id,
+          name: e.name,
+          role_id: e.role_id,
+          status: "ACTIVE",
+          pin_hash: hashPin(e.pin),
+          base_branch: e.base_branch,
+        }, 0, ""));
+      }
+    }
+    // Seed PRD app registry (dynamic import avoids a static cycle with registry.ts).
+    const { getRegistryApps } = await import("./registry");
+    await getRegistryApps();
+  })().catch((error) => {
+    seedPromise = null;
+    throw error;
+  });
+  // Allow a retry if this attempt failed.
+  try {
+    await seedPromise;
+  } catch (error) {
+    seedPromise = null;
+    throw error;
   }
 }

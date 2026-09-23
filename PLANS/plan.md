@@ -57,3 +57,10 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 
 ## Recommended next step
 Runtime smoke test against a seeded spreadsheet (login → launcher → admin → revoke session), grant SA Editor access, then proceed to Phase 4 per PRD scope.
+
+### Smoke-test fixes (2026-09-23)
+- `ensureSheet`: tolerate concurrent `addSheet` (400 "already exists") on first login.
+- `ensureLauncherTabs`: single-flight promise so parallel requests don't race.
+- `seedDefaultAuthData`: seed demo employees `emp_001`/`002`/`003` (PIN `1234`) when empty.
+- Registry: seed PRD defaults (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) when Apps tab empty.
+- SA Editor share verified (direct Sheets API read/write OK).
