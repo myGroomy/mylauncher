@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, UserCheck, Shield, AppWindow, KeyRound, Users, ScrollText } from "lucide-react";
 import Link from "next/link";
+import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 
 export function AdminDashboard() {
   const { employees } = useEmployees();
@@ -13,6 +14,7 @@ export function AdminDashboard() {
   const { apps } = useApps();
   const { sessions } = useAdminSessions();
   const { logs } = useAuditLogs();
+  const features = useFeatureSettings();
 
   const recentLogs = logs.slice(0, 20);
   const activeSessions = sessions.filter((s) => s.active).length;
@@ -35,7 +37,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/admin/roles">
+         {features.admin_roles && <Link href="/admin/roles">
           <Card className="hover:bg-secondary/50 transition-colors cursor-pointer">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
@@ -47,8 +49,8 @@ export function AdminDashboard() {
               <p className="text-xs text-ink-soft mt-1">Permission assignments</p>
             </CardContent>
           </Card>
-        </Link>
-        <Link href="/admin/permissions">
+         </Link>}
+         {features.admin_permissions && <Link href="/admin/permissions">
           <Card className="hover:bg-secondary/50 transition-colors cursor-pointer">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
@@ -60,8 +62,8 @@ export function AdminDashboard() {
               <p className="text-xs text-ink-soft mt-1">Access keys</p>
             </CardContent>
           </Card>
-        </Link>
-        <Link href="/admin/apps">
+         </Link>}
+         {features.admin_apps && <Link href="/admin/apps">
           <Card className="hover:bg-secondary/50 transition-colors cursor-pointer">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
@@ -73,7 +75,7 @@ export function AdminDashboard() {
               <p className="text-xs text-ink-soft mt-1">Registry management</p>
             </CardContent>
           </Card>
-        </Link>
+         </Link>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

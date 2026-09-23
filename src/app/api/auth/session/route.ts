@@ -19,16 +19,26 @@ export async function GET() {
       session: {
         employeeId: session.employeeId,
         roleId: session.roleId,
-        roleName: role?.name || session.roleId,
+        roleName: role?.name || session.roleName || session.roleId,
         permissions: role?.permissions ?? session.permissions,
         expiresAt: session.expiresAt,
         employee: {
           employee_id: employee.employee_id,
+          username: employee.username,
           name: employee.name,
           role: employee.role_id,
           status: employee.status,
           base_branch: employee.base_branch || "",
         },
+      },
+      claims: {
+        employeeId: session.employeeId,
+        username: employee.username,
+        employeeName: session.employeeName || employee.name,
+        roleId: session.roleId,
+        roleName: role?.name || session.roleName || session.roleId,
+        permissions: role?.permissions ?? session.permissions,
+        baseBranch: session.baseBranch || employee.base_branch || "",
       },
     });
   } catch (error) {

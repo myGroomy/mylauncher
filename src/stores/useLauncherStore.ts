@@ -56,6 +56,7 @@ interface DomainState extends AuthState {
   // Employee CRUD
   createEmployee: (employee: Omit<Employee, "employee_id"> & { employee_id?: string }) => { success: boolean; message: string };
   updateEmployee: (employeeId: string, updates: Partial<Omit<Employee, "employee_id">>) => { success: boolean; message: string };
+  findEmployeeByUsername: (username: string) => Employee | undefined;
   toggleEmployeeStatus: (employeeId: string) => void;
   resetEmployeePin: (employeeId: string) => { success: boolean; message: string };
 
@@ -113,9 +114,9 @@ const MOCK_SCHEDULES: ScheduleEntry[] = [
 ];
 
 const MOCK_EMPLOYEES: Employee[] = [
-  { employee_id: "emp_001", name: "Admin User", role: "role_admin", status: "ACTIVE", base_branch: "branch_cibiru" },
-  { employee_id: "emp_002", name: "Regular User", role: "role_user", status: "ACTIVE", base_branch: "branch_antapani" },
-  { employee_id: "emp_003", name: "Read Only", role: "role_viewer", status: "ACTIVE", base_branch: "branch_cimahi" },
+  { employee_id: "emp_001", username: "admin", name: "Admin User", role: "role_admin", status: "ACTIVE", base_branch: "branch_cibiru" },
+  { employee_id: "emp_002", username: "crew", name: "Regular User", role: "role_user", status: "ACTIVE", base_branch: "branch_antapani" },
+  { employee_id: "emp_003", username: "viewer", name: "Read Only", role: "role_viewer", status: "ACTIVE", base_branch: "branch_cimahi" },
 ];
 
 function addLog(state: DomainState, action: string, employeeId: string | null, details: string): AuditLogEntry[] {
@@ -127,10 +128,10 @@ export const useDomainStore = create<DomainState>()(
   persist(
     (set, get) => ({
       apps: [
-        { app_id: "STOKIS", name: "Stokis", url: "app.mochikin.id/stokis", icon: "package", status: "ACTIVE" as const, required_permission: "view_stokis" },
-        { app_id: "MYSHIFT", name: "Myshift", url: "app.mochikin.id/myshift", icon: "calendar-days", status: "ACTIVE" as const, required_permission: "view_myshift" },
-        { app_id: "MYCUSTOMER", name: "Mycustomer", url: "app.mochikin.id/mycustomer", icon: "users", status: "ACTIVE" as const, required_permission: "view_mycustomer" },
-        { app_id: "MYHR", name: "Myhr", url: "app.mochikin.id/myhr", icon: "building-columns", status: "ACTIVE" as const, required_permission: "view_myhr" },
+        { app_id: "STOKIS", name: "Stokis", url: "https://stokis-project.vercel.app", icon: "package", status: "ACTIVE" as const, required_permission: "view_stokis" },
+        { app_id: "MYSHIFT", name: "Myshift", url: "", icon: "calendar-days", status: "INACTIVE" as const, required_permission: "view_myshift" },
+        { app_id: "MYCUSTOMER", name: "Mycustomer", url: "https://retain-ly.vercel.app", icon: "users", status: "ACTIVE" as const, required_permission: "view_mycustomer" },
+        { app_id: "MYHR", name: "Myhr", url: "", icon: "building-columns", status: "INACTIVE" as const, required_permission: "view_myhr" },
       ],
       employees: MOCK_EMPLOYEES,
       roles: MOCK_ROLES,
@@ -238,6 +239,11 @@ export const useDomainStore = create<DomainState>()(
         return get().employees.find((e) => e.employee_id === id);
       },
 
+      findEmployeeByUsername: (username) => {
+        const wanted = username.trim().toLowerCase();
+        return get().employees.find((e) => e.username.trim().toLowerCase() === wanted);
+      },
+
       getAuditLog: () => {
         return get().auditLog;
       },
@@ -260,8 +266,16 @@ export const useDomainStore = create<DomainState>()(
         if (state.employees.some((e) => e.employee_id === id)) {
           return { success: false, message: "Employee ID already exists" };
         }
+        const username = employee.username.trim().toLowerCase();
+        if (!username) {
+          return { success: false, message: "Username is required" };
+        }
+        if (state.employees.some((e) => e.username.trim().toLowerCase() === username)) {
+          return { success: false, message: "Username already exists" };
+        }
         const newEmployee: Employee = {
           employee_id: id,
+          username,
           name: employee.name,
           role: employee.role,
           status: employee.status || "ACTIVE",

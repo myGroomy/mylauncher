@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AppWindow, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-const APP_ICONS = ["package", "calendar-days", "users", "building-columns", "layout-grid"];
+const APP_ICONS = ["package", "calendar-days", "users", "building", "layout-grid"];
 const APP_STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
 
 export function AppManagement() {
@@ -74,7 +74,7 @@ export function AppManagement() {
             {!editingId && (
               <Input value={(form.app_id as string) || ""} onChange={(e) => setForm({ ...form, app_id: e.target.value })} placeholder="App ID (optional, e.g. MYPURCHASE)" />
             )}
-            <Input value={form.url || ""} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="URL e.g. app.mochikin.id/myapp" />
+            <Input value={form.url || ""} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="URL e.g. https://myapp.vercel.app" />
             <Select value={form.required_permission || undefined} onValueChange={(val) => setForm({ ...form, required_permission: val ?? undefined })}>
               <SelectTrigger>
                 <SelectValue placeholder="Required permission" />

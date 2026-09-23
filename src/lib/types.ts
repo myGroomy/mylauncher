@@ -11,6 +11,7 @@ export interface App {
 
 export interface Employee {
   employee_id: string;
+  username: string;
   name: string;
   role: string;
   status: string;
@@ -106,3 +107,23 @@ export interface HomeFeed {
   notifications: NotificationItem[];
   activity: AuditLogEntry[];
 }
+
+export const FEATURE_KEYS = [
+  "global_search",
+  "notifications",
+  "work_context",
+  "announcements",
+  "favorite_apps",
+  "recent_apps",
+  "system_status",
+  "recent_activity",
+  "admin_roles",
+  "admin_permissions",
+  "admin_apps",
+  "admin_announcements",
+  "admin_sessions",
+  "admin_audit",
+] as const;
+
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
+export type FeatureSettings = Record<FeatureKey, boolean>;

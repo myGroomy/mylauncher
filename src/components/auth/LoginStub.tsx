@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export function LoginStub() {
   const router = useRouter();
-  const [employeeId, setEmployeeId] = useState("");
+  const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const hydrateSession = useDomainStore((s) => s.hydrateSession);
@@ -30,12 +30,13 @@ export function LoginStub() {
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId, pin }),
+          body: JSON.stringify({ username, pin }),
         });
         const result = await response.json() as {
           message?: string;
           employee?: {
             employee_id: string;
+            username: string;
             name: string;
             role: string;
             status: string;
@@ -79,15 +80,16 @@ export function LoginStub() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <span className="text-sm text-ink-soft">Employee ID</span>
+            <span className="text-sm text-ink-soft">Username</span>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mist" />
               <Input
-                id="employeeId"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="Employee ID"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
                 className="pl-10"
+                autoComplete="username"
               />
             </div>
           </div>
@@ -114,7 +116,7 @@ export function LoginStub() {
           </Button>
         </form>
 
-        <p className="text-xs text-mist text-center">Use your assigned employee ID and PIN.</p>
+        <p className="text-xs text-mist text-center">Use your assigned username and PIN.</p>
       </div>
     </div>
   );

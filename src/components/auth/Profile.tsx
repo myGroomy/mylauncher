@@ -29,6 +29,10 @@ export function Profile() {
           <span className="text-ink font-medium">{activeEmployee.name}</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
+          <span className="text-mist">Username:</span>
+          <span className="text-ink font-mono text-xs">{activeEmployee.username}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
           <span className="text-mist">Employee ID:</span>
           <span className="text-ink font-mono text-xs">{activeEmployee.employee_id}</span>
         </div>

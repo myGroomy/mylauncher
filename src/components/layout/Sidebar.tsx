@@ -4,6 +4,7 @@ import { useDomainStore } from "@/stores/useLauncherStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 import {
   LayoutGrid,
   Package,
@@ -18,6 +19,7 @@ import {
   LogOut,
   ScrollText,
   Megaphone,
+  BookOpen,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -39,6 +41,7 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
   const permissions = useDomainStore((s) => s.permissions);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const roleId = useDomainStore((s) => s.roleId);
+  const features = useFeatureSettings();
 
   const accessibleApps = isAuthenticated
     ? apps.filter((app) => app.status === "ACTIVE" && permissions.includes(app.required_permission))
@@ -65,6 +68,11 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
             icon={<LayoutGrid className="h-4 w-4" />}
             label="Dashboard"
             href="/launcher"
+          />
+          <SidebarButton
+            icon={<BookOpen className="h-4 w-4" />}
+            label="Documentation"
+            href="/docs"
           />
 
           <Separator className="my-2 bg-hairline" />
@@ -94,35 +102,40 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
                 label="Employees"
                 href="/admin/employees"
               />
-              <SidebarButton
+              {features.admin_roles && <SidebarButton
                 icon={<Shield className="h-4 w-4" />}
                 label="Roles"
                 href="/admin/roles"
-              />
-              <SidebarButton
+              />}
+              {features.admin_permissions && <SidebarButton
                 icon={<KeyRound className="h-4 w-4" />}
                 label="Permissions"
                 href="/admin/permissions"
-              />
-              <SidebarButton
+              />}
+              {features.admin_apps && <SidebarButton
                 icon={<AppWindow className="h-4 w-4" />}
                 label="Applications"
                 href="/admin/apps"
-              />
-              <SidebarButton
+              />}
+              {features.admin_announcements && <SidebarButton
                 icon={<Megaphone className="h-4 w-4" />}
                 label="Announcements"
                 href="/admin/announcements"
-              />
-              <SidebarButton
+              />}
+              {features.admin_sessions && <SidebarButton
                 icon={<LogOut className="h-4 w-4" />}
                 label="Sessions"
                 href="/admin/sessions"
-              />
-              <SidebarButton
+              />}
+              {features.admin_audit && <SidebarButton
                 icon={<ScrollText className="h-4 w-4" />}
                 label="Audit Log"
                 href="/admin/audit"
+              />}
+              <SidebarButton
+                icon={<Settings className="h-4 w-4" />}
+                label="Settings"
+                href="/admin/settings"
               />
             </>
           )}

@@ -17,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { Announcement, NotificationItem } from "@/lib/types";
+import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 
 function formatWhen(iso: string): string {
   if (!iso) return "";
@@ -42,6 +43,7 @@ export function NotificationBell() {
   const roleId = useDomainStore((s) => s.roleId);
   const dismissed = useDomainStore((s) => s.dismissedAnnouncements);
   const dismissAnnouncement = useDomainStore((s) => s.dismissAnnouncement);
+  const features = useFeatureSettings();
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -61,7 +63,9 @@ export function NotificationBell() {
     refetch();
   }
 
-  const visibleAnnouncements = feed.announcements.filter((a) => !dismissed.includes(a.announcement_id));
+  const visibleAnnouncements = features.announcements
+    ? feed.announcements.filter((a) => !dismissed.includes(a.announcement_id))
+    : [];
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -121,7 +125,7 @@ export function NotificationBell() {
               </section>
             )}
 
-            <section>
+            {features.recent_activity && <section>
               <p className="text-xs font-semibold text-ink-soft mb-2">Personal</p>
               {feed.notifications.length === 0 ? (
                 <p className="text-xs text-mist">No personal notifications.</p>
@@ -152,7 +156,7 @@ export function NotificationBell() {
                   ))}
                 </ul>
               )}
-            </section>
+            </section>}
 
             <section>
               <p className="text-xs font-semibold text-ink-soft mb-2">Recent activity</p>

@@ -1,8 +1,8 @@
 import "server-only";
 
 import { scryptSync, randomBytes, timingSafeEqual, randomUUID } from "node:crypto";
-import type { Announcement, AnnouncementSeverity, AuditLogEntry, Employee, NotificationItem, Permission, Role } from "@/lib/types";
-import { appendRow, deleteRowByIndex, ensureSheet, readSheet, rowsToObjects, updateRowByIndex } from "./sheets";
+import { FEATURE_KEYS, type Announcement, type AnnouncementSeverity, type AuditLogEntry, type Employee, type FeatureKey, type FeatureSettings, type NotificationItem, type Permission, type Role } from "@/lib/types";
+import { appendRow, deleteRowByIndex, ensureSheet, readSheet, rowsToObjects, updateRowByIndex, updateSheetRowByNumber } from "./sheets";
 
 export const TABS = {
   employees: "Employees",
@@ -13,10 +13,12 @@ export const TABS = {
   apps: "Apps",
   announcements: "Announcements",
   notifications: "Notifications",
+  settings: "Settings",
 } as const;
 
 const EMPLOYEE_HEADERS = [
   "employee_id",
+  "username",
   "name",
   "role_id",
   "status",
@@ -58,9 +60,11 @@ const NOTIFICATION_HEADERS = [
   "created_at",
   "read_at",
 ];
+const SETTINGS_HEADERS = ["key", "enabled", "updated_at", "updated_by"];
 
 export interface SheetEmployee {
   employee_id: string;
+  username: string;
   name: string;
   role_id: string;
   status: string;
@@ -104,11 +108,15 @@ const DEFAULT_PERMISSIONS: Permission[] = [
   { permission_id: "perm_manage_admin", key: "manage_admin", description: "Manage admin panel" },
 ];
 
+export const DEFAULT_FEATURE_SETTINGS: FeatureSettings = Object.fromEntries(
+  FEATURE_KEYS.map((key) => [key, true])
+) as FeatureSettings;
+
 /** Demo accounts matching README; PIN 1234 — hashed on seed. */
 const DEMO_EMPLOYEES = [
-  { employee_id: "emp_001", name: "Admin User", role_id: "role_admin", base_branch: "branch_cibiru", pin: "1234" },
-  { employee_id: "emp_002", name: "Regular User", role_id: "role_user", base_branch: "branch_antapani", pin: "1234" },
-  { employee_id: "emp_003", name: "Read Only", role_id: "role_viewer", base_branch: "branch_cimahi", pin: "1234" },
+  { employee_id: "emp_001", username: "admin", name: "Admin User", role_id: "role_admin", base_branch: "branch_cibiru", pin: "1234" },
+  { employee_id: "emp_002", username: "crew", name: "Regular User", role_id: "role_user", base_branch: "branch_antapani", pin: "1234" },
+  { employee_id: "emp_003", username: "viewer", name: "Read Only", role_id: "role_viewer", base_branch: "branch_cimahi", pin: "1234" },
 ];
 
 let seeded = false;
@@ -126,6 +134,7 @@ export async function ensureLauncherTabs(): Promise<void> {
       await ensureSheet(TABS.apps, APP_HEADERS);
       await ensureSheet(TABS.announcements, ANNOUNCEMENT_HEADERS);
       await ensureSheet(TABS.notifications, NOTIFICATION_HEADERS);
+      await ensureSheet(TABS.settings, SETTINGS_HEADERS);
       seeded = true;
     })().catch((error) => {
       ensurePromise = null;
@@ -133,6 +142,86 @@ export async function ensureLauncherTabs(): Promise<void> {
     });
   }
   return ensurePromise;
+}
+
+export async function getFeatureSettings(): Promise<FeatureSettings> {
+  const { rows } = await readObjects(TABS.settings);
+  const settings = { ...DEFAULT_FEATURE_SETTINGS };
+  for (const row of rows) {
+    const key = row.key as FeatureKey;
+    if (FEATURE_KEYS.includes(key)) settings[key] = String(row.enabled).toLowerCase() !== "false";
+  }
+  return settings;
+}
+
+export async function updateFeatureSettings(
+  updates: Partial<FeatureSettings>,
+  updatedBy: string
+): Promise<FeatureSettings> {
+  await ensureLauncherTabs();
+  const { rows } = await readObjects(TABS.settings);
+  const existing = new Map(rows.map((row, index) => [row.key, { row, index }]));
+  for (const key of FEATURE_KEYS) {
+    if (updates[key] === undefined) continue;
+    const values = [key, updates[key] ? "true" : "false", new Date().toISOString(), updatedBy];
+    const found = existing.get(key);
+    if (found) await updateRowByIndex(TABS.settings, found.index, values);
+    else await appendRow(TABS.settings, values);
+  }
+  return getFeatureSettings();
+}
+
+function normalizeUsername(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function defaultUsernameForEmployee(employeeId: string, name: string, used: Set<string>): string {
+  const preferred =
+    employeeId === "emp_001" ? "admin" :
+    employeeId === "emp_002" ? "crew" :
+    employeeId === "emp_003" ? "viewer" :
+    normalizeUsername(employeeId) || normalizeUsername(name) || "user";
+  let candidate = preferred;
+  let suffix = 2;
+  while (used.has(candidate)) {
+    candidate = `${preferred}${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+let employeeMigrationPromise: Promise<void> | null = null;
+
+export async function ensureEmployeeUsernameColumn(): Promise<void> {
+  if (employeeMigrationPromise) return employeeMigrationPromise;
+  employeeMigrationPromise = (async () => {
+    await ensureLauncherTabs();
+    const raw = await readSheet(TABS.employees);
+    if (raw.length === 0) return;
+    const headers = (raw[0] || []).map((header) => String(header || "").trim());
+    if (headers.includes("username")) return;
+    await updateSheetRowByNumber(TABS.employees, 1, EMPLOYEE_HEADERS);
+    const used = new Set<string>();
+    for (let i = 1; i < raw.length; i += 1) {
+      const row = raw[i] || [];
+      if (row.every((cell) => String(cell || "").trim() === "")) continue;
+      const employeeId = String(row[0] ?? "").trim();
+      const name = String(row[1] ?? "").trim();
+      const username = defaultUsernameForEmployee(employeeId, name, used);
+      used.add(username);
+      const next = [employeeId, username, ...row.slice(1).map((cell) => cell ?? "")];
+      await updateSheetRowByNumber(TABS.employees, i + 1, next);
+    }
+  })().catch((error) => {
+    employeeMigrationPromise = null;
+    throw error;
+  });
+  try {
+    await employeeMigrationPromise;
+  } catch (error) {
+    employeeMigrationPromise = null;
+    throw error;
+  }
 }
 
 export function hashPin(pin: string): string {
@@ -151,6 +240,7 @@ export function verifyPin(pin: string, stored: string): boolean {
 function toPublicEmployee(row: SheetEmployee): Employee {
   return {
     employee_id: row.employee_id,
+    username: row.username,
     name: row.name,
     role: row.role_id,
     status: row.status,
@@ -171,6 +261,7 @@ function parseRole(row: Record<string, string>): Role {
 
 async function readObjects(title: string): Promise<{ rows: Record<string, string>[]; raw: string[][] }> {
   await ensureLauncherTabs();
+  if (title === TABS.employees) await ensureEmployeeUsernameColumn();
   const raw = await readSheet(title);
   return { rows: rowsToObjects(raw), raw };
 }
@@ -184,6 +275,34 @@ export async function findEmployee(employeeId: string): Promise<SheetEmployee | 
   const row = rows[idx];
   return {
     employee_id: row.employee_id || "",
+    username: row.username || "",
+    name: row.name || "",
+    role_id: row.role_id || "",
+    status: row.status || "ACTIVE",
+    pin_hash: row.pin_hash || "",
+    base_branch: row.base_branch || "",
+    failed_login_attempts: Number(row.failed_login_attempts || 0),
+    locked_until: row.locked_until || "",
+    _rowIndex: idx,
+  };
+}
+
+export async function findEmployeeByIdentity(identity: string): Promise<SheetEmployee | null> {
+  const trimmed = identity.trim();
+  if (!trimmed) return null;
+  const byId = await findEmployee(trimmed);
+  if (byId) return byId;
+  const wanted = normalizeUsername(trimmed);
+  const { rows } = await readObjects(TABS.employees);
+  const idx = rows.findIndex((row) =>
+    normalizeUsername(row.username || "") === wanted ||
+    normalizeUsername(row.employee_id || "") === wanted
+  );
+  if (idx < 0) return null;
+  const row = rows[idx];
+  return {
+    employee_id: row.employee_id || "",
+    username: row.username || "",
     name: row.name || "",
     role_id: row.role_id || "",
     status: row.status || "ACTIVE",
@@ -201,6 +320,7 @@ export async function listEmployees(): Promise<Employee[]> {
     .filter((row) => row.employee_id)
     .map((row) => toPublicEmployee({
       employee_id: row.employee_id || "",
+      username: row.username || "",
       name: row.name || "",
       role_id: row.role_id || "",
       status: row.status || "ACTIVE",
@@ -213,15 +333,16 @@ export async function listEmployees(): Promise<Employee[]> {
 }
 
 function employeeRow(
-  e: { employee_id: string; name: string; role_id: string; status: string; pin_hash: string; base_branch: string },
+  e: { employee_id: string; username: string; name: string; role_id: string; status: string; pin_hash: string; base_branch: string },
   failed: number,
   locked: string
 ): (string | number)[] {
-  return [e.employee_id, e.name, e.role_id, e.status, e.pin_hash, e.base_branch, failed, locked];
+  return [e.employee_id, e.username, e.name, e.role_id, e.status, e.pin_hash, e.base_branch, failed, locked];
 }
 
 export async function createEmployee(input: {
   employee_id?: string;
+  username: string;
   name: string;
   role_id: string;
   status?: string;
@@ -232,6 +353,13 @@ export async function createEmployee(input: {
   if (await findEmployee(id)) {
     return { success: false, message: "Employee ID already exists" };
   }
+  const username = normalizeUsername(input.username || "");
+  if (!username) {
+    return { success: false, message: "Username is required" };
+  }
+  if (await findEmployeeByIdentity(username)) {
+    return { success: false, message: "Username already exists" };
+  }
   if (!input.name.trim() || !input.role_id || !input.base_branch) {
     return { success: false, message: "Name, role, and base branch are required" };
   }
@@ -239,6 +367,7 @@ export async function createEmployee(input: {
   await ensureLauncherTabs();
   await appendRow(TABS.employees, employeeRow({
     employee_id: id,
+    username,
     name: input.name.trim(),
     role_id: input.role_id,
     status: input.status || "ACTIVE",
@@ -247,6 +376,7 @@ export async function createEmployee(input: {
   }, 0, ""));
   const employee: Employee = {
     employee_id: id,
+    username,
     name: input.name.trim(),
     role: input.role_id,
     status: input.status || "ACTIVE",
@@ -257,12 +387,19 @@ export async function createEmployee(input: {
 
 export async function updateEmployee(
   employeeId: string,
-  updates: Partial<{ name: string; role_id: string; status: string; base_branch: string }>
+  updates: Partial<{ username: string; name: string; role_id: string; status: string; base_branch: string }>
 ): Promise<{ success: boolean; message: string }> {
   const emp = await findEmployee(employeeId);
   if (!emp) return { success: false, message: "Employee not found" };
+  const username = updates.username === undefined ? emp.username : normalizeUsername(updates.username);
+  if (!username) return { success: false, message: "Username is required" };
+  const existing = await findEmployeeByIdentity(username);
+  if (existing && existing.employee_id !== emp.employee_id) {
+    return { success: false, message: "Username already exists" };
+  }
   const next = {
     employee_id: emp.employee_id,
+    username,
     name: updates.name?.trim() || emp.name,
     role_id: updates.role_id || emp.role_id,
     status: updates.status || emp.status,
@@ -768,6 +905,7 @@ export async function seedDefaultAuthData(): Promise<void> {
       for (const e of DEMO_EMPLOYEES) {
         await appendRow(TABS.employees, employeeRow({
           employee_id: e.employee_id,
+          username: e.username,
           name: e.name,
           role_id: e.role_id,
           status: "ACTIVE",

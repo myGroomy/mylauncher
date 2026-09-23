@@ -34,12 +34,13 @@ export function EmployeeManagement() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name || !form.role || !form.base_branch) {
-      toast.error("Name, role, and base branch are required");
+    if (!form.username || !form.name || !form.role || !form.base_branch) {
+      toast.error("Username, name, role, and base branch are required");
       return;
     }
     if (editingId) {
       const result = await update(editingId, {
+        username: form.username,
         name: form.name,
         role_id: form.role,
         status: form.status,
@@ -50,6 +51,7 @@ export function EmployeeManagement() {
     } else {
       const result = await create({
         employee_id: form.employee_id,
+        username: form.username,
         name: form.name,
         role_id: form.role,
         status: form.status,
@@ -102,6 +104,7 @@ export function EmployeeManagement() {
         <CardContent>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" />
+            <Input value={form.username || ""} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="Username" />
             {!editingId && (
               <Input value={form.employee_id || ""} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} placeholder="Employee ID (optional)" />
             )}
@@ -183,6 +186,7 @@ export function EmployeeManagement() {
               <thead>
                 <tr className="border-b border-hairline">
                   <th className="text-left text-xs font-medium text-ink-soft pb-2">Employee ID</th>
+                  <th className="text-left text-xs font-medium text-ink-soft pb-2">Username</th>
                   <th className="text-left text-xs font-medium text-ink-soft pb-2">Name</th>
                   <th className="text-left text-xs font-medium text-ink-soft pb-2">Role</th>
                   <th className="text-left text-xs font-medium text-ink-soft pb-2">Status</th>
@@ -193,6 +197,7 @@ export function EmployeeManagement() {
                 {employees.map((emp) => (
                   <tr key={emp.employee_id} className="hover:bg-secondary/50">
                     <td className="py-2 text-xs font-mono text-ink">{emp.employee_id}</td>
+                    <td className="py-2 text-xs font-mono text-ink">{emp.username}</td>
                     <td className="py-2 text-sm text-ink">{emp.name}</td>
                     <td className="py-2"><Badge variant="secondary" className="text-xs">{emp.role}</Badge></td>
                     <td className="py-2"><Badge variant={emp.status === "ACTIVE" ? "default" : "destructive"} className="text-xs">{emp.status}</Badge></td>
@@ -211,7 +216,7 @@ export function EmployeeManagement() {
                 ))}
                 {employees.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-4 text-sm text-ink-soft">No employees yet. Create one above.</td>
+                    <td colSpan={6} className="py-4 text-sm text-ink-soft">No employees yet. Create one above.</td>
                   </tr>
                 )}
               </tbody>

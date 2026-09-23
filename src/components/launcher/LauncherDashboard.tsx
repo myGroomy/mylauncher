@@ -5,7 +5,9 @@ import { App } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Lock, Star, Clock, Megaphone, Activity, Server } from "lucide-react";
+import { ExternalLink, Lock, Star, Clock, Megaphone, Activity, Server, Package, CalendarDays, Users, Building, LayoutGrid } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 import { Profile } from "@/components/auth/Profile";
 import { WorkContextWidget } from "@/components/launcher/WorkContextWidget";
 import { useFeed } from "@/hooks/useFeed";
@@ -27,6 +29,7 @@ export function LauncherDashboard() {
   const { feed, loaded } = useFeed();
   const [registryError, setRegistryError] = useState("");
   const router = useRouter();
+  const features = useFeatureSettings();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -65,10 +68,10 @@ export function LauncherDashboard() {
     <div className="space-y-6">
       {isAuthenticated && activeEmployee && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
+          {features.work_context && <div className="lg:col-span-2">
             <Profile />
-          </div>
-          <WorkContextWidget />
+          </div>}
+          {features.work_context && <WorkContextWidget />}
         </div>
       )}
 
@@ -86,7 +89,7 @@ export function LauncherDashboard() {
       </div>
       {registryError && <p className="text-sm text-rose">{registryError}</p>}
 
-      {isAuthenticated && visibleAnnouncements.length > 0 && (
+      {isAuthenticated && features.announcements && visibleAnnouncements.length > 0 && (
         <div className="space-y-2">
           {visibleAnnouncements.map((a) => (
             <Card
@@ -124,9 +127,9 @@ export function LauncherDashboard() {
         </div>
       )}
 
-      {isAuthenticated && (favoriteApps.length > 0 || recent.length > 0) && (
+      {isAuthenticated && ((features.favorite_apps && favoriteApps.length > 0) || (features.recent_apps && recent.length > 0)) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {favoriteApps.length > 0 && (
+          {features.favorite_apps && favoriteApps.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
@@ -148,7 +151,7 @@ export function LauncherDashboard() {
               </CardContent>
             </Card>
           )}
-          {recent.length > 0 && (
+          {features.recent_apps && recent.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
@@ -173,9 +176,9 @@ export function LauncherDashboard() {
         </div>
       )}
 
-      {isAuthenticated && (
+      {isAuthenticated && (features.system_status || features.recent_activity) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
+          {features.system_status && <Card>
             <CardHeader>
               <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
                 <Server className="h-4 w-4" /> System Status
@@ -199,8 +202,8 @@ export function LauncherDashboard() {
                 </span>
               </div>
             </CardContent>
-          </Card>
-          <Card>
+          </Card>}
+          {features.recent_activity && <Card>
             <CardHeader>
               <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
                 <Activity className="h-4 w-4" /> Recent Activity
@@ -220,7 +223,7 @@ export function LauncherDashboard() {
                 </ul>
               )}
             </CardContent>
-          </Card>
+          </Card>}
         </div>
       )}
 
@@ -238,10 +241,11 @@ export function LauncherDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayApps.map((app) => (
+          {displayApps.map((app, index) => (
             <AppCard
               key={app.app_id}
               app={app}
+              index={index}
               onClick={handleOpenApp}
               favorite={favorites.includes(app.app_id)}
               onToggleFavorite={() => toggleFavorite(app.app_id)}
@@ -253,68 +257,98 @@ export function LauncherDashboard() {
   );
 }
 
+const APP_DISPLAY: Record<string, { description: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  STOKIS: { description: "Inventory and stock opname", Icon: Package },
+  MYSHIFT: { description: "Schedules, shifts, and branch context", Icon: CalendarDays },
+  MYCUSTOMER: { description: "Customer workspace and CRM", Icon: Users },
+  MYHR: { description: "Employee and HR management", Icon: Building },
+};
+
 function AppCard({
   app,
+  index,
   onClick,
   favorite,
   onToggleFavorite,
 }: {
   app: App;
+  index: number;
   onClick: (app: App) => void;
   favorite: boolean;
   onToggleFavorite: () => void;
 }) {
   const isActive = app.status === "ACTIVE";
+  const reduceMotion = useReducedMotion();
+  const display = APP_DISPLAY[app.app_id] ?? { description: `${app.name} workspace`, Icon: LayoutGrid };
+  const { Icon } = display;
+  const entranceDuration = reduceMotion ? 0 : 0.5;
+  const feedbackDuration = reduceMotion ? 0 : 0.25;
+  const statusStyle =
+    app.status === "ACTIVE"
+      ? "bg-emerald/10 text-emerald"
+      : app.status === "MAINTENANCE"
+        ? "bg-amber/10 text-amber"
+        : "bg-rose/10 text-rose";
 
   return (
-    <Card
-      className={`relative hover:shadow-md transition-shadow ${isActive ? "cursor-pointer hover:scale-[1.02]" : "opacity-60"}`}
-      onClick={() => isActive && onClick(app)}
+    <motion.div
+      layout={!reduceMotion}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: entranceDuration, ease: [0.4, 0, 0, 1], delay: reduceMotion ? 0 : Math.min(index * 0.05, 0.25) }}
+      whileHover={isActive && !reduceMotion ? { y: -3 } : undefined}
+      whileTap={isActive && !reduceMotion ? { scale: 0.99 } : undefined}
+      className="h-full"
     >
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <CardTitle className="text-sm font-bold text-ink truncate">{app.name}</CardTitle>
-            <CardDescription>{app.app_id}</CardDescription>
+      <Card className={`relative h-full transition-colors ${isActive ? "hover:border-hairline-strong" : "opacity-60"}`}>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-wash text-accent ring-1 ring-hairline">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <CardTitle className="truncate text-sm font-bold text-ink">{app.name}</CardTitle>
+                <CardDescription className="truncate text-xs">{app.app_id}</CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-ash hover:text-amber"
+              aria-label={favorite ? `Remove ${app.name} from favorites` : `Add ${app.name} to favorites`}
+              aria-pressed={favorite}
+              onClick={onToggleFavorite}
+            >
+              <motion.span
+                className="flex"
+                animate={favorite && !reduceMotion ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                transition={{ duration: feedbackDuration, ease: [0.4, 0, 0, 1] }}
+              >
+                <Star className={`h-4 w-4 ${favorite ? "fill-amber text-amber" : ""}`} />
+              </motion.span>
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-ash hover:text-amber"
-            aria-label={favorite ? "Remove favorite" : "Add favorite"}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-          >
-            <Star className={`h-3.5 w-3.5 ${favorite ? "fill-amber text-amber" : ""}`} />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <span
-            className={`text-xs font-medium px-2 py-1 rounded-full ${
-              app.status === "ACTIVE"
-                ? "bg-emerald/10 text-emerald"
-                : app.status === "MAINTENANCE"
-                  ? "bg-amber/10 text-amber"
-                  : "bg-rose/10 text-rose"
-            }`}
-          >
-            {app.status}
-          </span>
-          {isActive ? (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-accent">
-              Open <ExternalLink className="h-3 w-3" />
+        </CardHeader>
+        <CardContent className="flex h-full flex-col gap-3">
+          <p className="min-h-8 text-xs leading-5 text-ink-soft">{display.description}</p>
+          <div className="mt-auto flex items-center justify-between gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${statusStyle}`}>
+              {isActive ? <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" /> : <Lock className="h-3 w-3" aria-hidden="true" />}
+              {isActive ? "Available" : app.status === "MAINTENANCE" ? "Maintenance" : "Locked"}
             </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-mist">
-              <Lock className="h-3 w-3" /> Locked
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            {isActive ? (
+              <Button size="sm" className="h-9 rounded-full px-4" onClick={() => onClick(app)}>
+                Open <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            ) : (
+              <span className="inline-flex h-9 items-center rounded-full border border-hairline px-4 text-xs font-medium text-mist">
+                Unavailable
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

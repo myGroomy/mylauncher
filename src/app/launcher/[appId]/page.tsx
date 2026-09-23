@@ -31,6 +31,7 @@ export default async function AppIdPage({
     session.permissions.includes(app.required_permission);
 
   let deepLink: string | null = null;
+  let handoffUrl: string | null = null;
   if (authorized && app) {
     const path = typeof sp.path === "string" ? sp.path : null;
     const rest: string[] = [];
@@ -65,11 +66,15 @@ export default async function AppIdPage({
         // audit is best-effort
       }
     }
+    if (app.app_id === "STOKIS" || app.app_id === "MYCUSTOMER") {
+      const params = new URLSearchParams({ appId: app.app_id, returnPath: deepLink || "/" });
+      handoffUrl = `/api/auth/handoff?${params.toString()}`;
+    }
   }
 
   return (
     <AppShell>
-      <AppLaunchView app={authorized && app ? app : null} appId={appId} deepLink={deepLink} />
+      <AppLaunchView app={authorized && app ? app : null} appId={appId} deepLink={deepLink} handoffUrl={handoffUrl} />
     </AppShell>
   );
 }

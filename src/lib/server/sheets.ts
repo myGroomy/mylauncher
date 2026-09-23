@@ -6,6 +6,22 @@ import { getSheetsEnv } from "./env";
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
 let client: sheets_v4.Sheets | null = null;
+const sheetCache = new Map<string, { value: string[][]; expiresAt: number }>();
+const sheetReads = new Map<string, Promise<string[][]>>();
+const sheetVersions = new Map<string, number>();
+const CACHE_TTL_MS = 10_000;
+
+function invalidateSheetCache(title?: string): void {
+  if (title) {
+    sheetCache.delete(title);
+    sheetVersions.set(title, (sheetVersions.get(title) || 0) + 1);
+    return;
+  }
+  sheetCache.clear();
+  for (const key of sheetVersions.keys()) {
+    sheetVersions.set(key, (sheetVersions.get(key) || 0) + 1);
+  }
+}
 
 export function getSheets(): sheets_v4.Sheets {
   if (client) return client;
@@ -65,14 +81,31 @@ export async function ensureSheet(title: string, headers: string[]): Promise<voi
 }
 
 export async function readSheet(title: string): Promise<string[][]> {
+  const now = Date.now();
+  const cached = sheetCache.get(title);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const pending = sheetReads.get(title);
+  if (pending) return pending;
+
   const sheets = getSheets();
-  // Do not swallow API errors (quota/network): returning [] would make
-  // seedDefaultAuthData re-append demo rows and hide revoke failures.
-  const res = await sheets.spreadsheets.values.get({
+  const version = sheetVersions.get(title) || 0;
+  const read = sheets.spreadsheets.values.get({
     spreadsheetId: spreadsheetId(),
     range: `${title}!A:Z`,
+  }).then((res) => {
+    const values = (res.data.values || []) as string[][];
+    if ((sheetVersions.get(title) || 0) === version) {
+      sheetCache.set(title, { value: values, expiresAt: Date.now() + CACHE_TTL_MS });
+    }
+    return values;
+  }).finally(() => {
+    sheetReads.delete(title);
   });
-  return (res.data.values || []) as string[][];
+  sheetReads.set(title, read);
+  return read;
 }
 
 export function rowsToObjects(rows: string[][]): Record<string, string>[] {
@@ -96,6 +129,7 @@ export async function appendRow(title: string, values: (string | number)[]): Pro
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [values] },
   });
+  invalidateSheetCache(title);
 }
 
 function columnLetter(n: number): string {
@@ -110,16 +144,20 @@ function columnLetter(n: number): string {
 }
 
 export async function updateRowByIndex(title: string, dataIndex: number, values: (string | number)[]): Promise<void> {
+  await updateSheetRowByNumber(title, dataIndex + 2, values);
+}
+
+export async function updateSheetRowByNumber(title: string, rowNumber: number, values: (string | number)[]): Promise<void> {
   const sheets = getSheets();
-  const sheetRow = dataIndex + 2;
   const endCol = columnLetter(values.length);
-  const range = `${title}!A${sheetRow}:${endCol}${sheetRow}`;
+  const range = `${title}!A${rowNumber}:${endCol}${rowNumber}`;
   await sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheetId(),
     range,
     valueInputOption: "RAW",
     requestBody: { values: [values] },
   });
+  invalidateSheetCache(title);
 }
 
 export async function deleteRowByIndex(title: string, dataIndex: number): Promise<void> {
@@ -138,4 +176,5 @@ export async function deleteRowByIndex(title: string, dataIndex: number): Promis
       }],
     },
   });
+  invalidateSheetCache(title);
 }

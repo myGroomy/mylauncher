@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { App, AppStatus } from "@/lib/types";
-import { APP_REGISTRY } from "@/lib/constants";
+import { APP_REGISTRY, CANONICAL_ECOSYSTEM_APP_URLS, PENDING_ECOSYSTEM_APP_IDS } from "@/lib/constants";
 import { appendRow, deleteRowByIndex, ensureSheet, readSheet, rowsToObjects, updateRowByIndex } from "./sheets";
 import { ensureLauncherTabs, TABS } from "./data";
 
@@ -47,6 +47,26 @@ function mapApp(row: Record<string, string>): App {
   };
 }
 
+async function syncEcosystemRegistry(objects: Record<string, string>[], tab: string): Promise<boolean> {
+  let updated = false;
+  for (let index = 0; index < objects.length; index += 1) {
+    const current = mapApp(objects[index]);
+    if (!current.app_id) continue;
+    const canonicalUrl = (CANONICAL_ECOSYSTEM_APP_URLS as Record<string, string>)[current.app_id];
+    if (canonicalUrl && (current.url !== canonicalUrl || current.status !== "ACTIVE")) {
+      await updateRowByIndex(tab, index, appRow({ ...current, url: canonicalUrl, status: "ACTIVE" }));
+      updated = true;
+    } else if (
+      (PENDING_ECOSYSTEM_APP_IDS as readonly string[]).includes(current.app_id) &&
+      /mochikin\.id/i.test(current.url)
+    ) {
+      await updateRowByIndex(tab, index, appRow({ ...current, url: "", status: "INACTIVE" }));
+      updated = true;
+    }
+  }
+  return updated;
+}
+
 export async function getRegistryApps(): Promise<App[]> {
   if (cached && cached.expiresAt > Date.now()) return cached.apps;
   await ensureLauncherTabs();
@@ -55,10 +75,12 @@ export async function getRegistryApps(): Promise<App[]> {
   let objects = rowsToObjects(rows);
   const hasData = objects.some((row) => String(row.app_id || "").trim() !== "");
   if (!hasData) {
-    // Seed PRD default apps (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) once empty.
     for (const app of APP_REGISTRY) {
       await appendRow(tab, appRow(app));
     }
+    rows = await readSheet(tab);
+    objects = rowsToObjects(rows);
+  } else if (await syncEcosystemRegistry(objects, tab)) {
     rows = await readSheet(tab);
     objects = rowsToObjects(rows);
   }

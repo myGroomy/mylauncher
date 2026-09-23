@@ -17,6 +17,10 @@ export interface SessionPayload {
   roleId: string;
   permissions: string[];
   expiresAt: number;
+  employeeName?: string;
+  username?: string;
+  baseBranch?: string;
+  roleName?: string;
   sessionId?: string;
 }
 
@@ -60,7 +64,12 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function setSession(payload: Omit<SessionPayload, "expiresAt" | "sessionId"> & { sessionId?: string }): Promise<number> {
   const expiresAt = Date.now() + SESSION_SECONDS * 1000;
   const sessionId = payload.sessionId ?? crypto.randomUUID();
-  (await cookies()).set(COOKIE_NAME, encode({ ...payload, sessionId, expiresAt }), {
+  const cookiePayload: SessionPayload = {
+    ...payload,
+    sessionId,
+    expiresAt,
+  };
+  (await cookies()).set(COOKIE_NAME, encode(cookiePayload), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

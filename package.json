@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm run build",
+    "smoke:prod": "node scripts/smoke-prod.mjs",
+    "sync:stokis-users": "node scripts/sync-stokis-users.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

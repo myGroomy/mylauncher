@@ -12,7 +12,12 @@ export function useFeed() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let loading = false;
+    const REFRESH_MS = 30_000;
+
+    async function load() {
+      if (loading) return;
+      loading = true;
       try {
         const res = await fetch("/api/feed");
         const body = (await res.json()) as { success?: boolean; feed?: HomeFeed; message?: string };
@@ -32,10 +37,25 @@ export function useFeed() {
           setFeed((prev) => prev ?? EMPTY);
           setError(e instanceof Error ? e.message : "Feed unavailable");
         }
+      } finally {
+        loading = false;
       }
-    })();
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void load();
+    }
+
+    void load();
+    const interval = window.setInterval(() => {
+      refreshWhenVisible();
+    }, REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [tick]);
 

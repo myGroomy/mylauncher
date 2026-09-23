@@ -12,6 +12,7 @@ import { LogOut, User, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { broadcastLogout } from "@/hooks/useSessionSync";
+import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -25,6 +26,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const getSession = useDomainStore((s) => s.getSession);
   const [now, setNow] = useState(0);
   const [sessionInfo, setSessionInfo] = useState(getSession());
+  const features = useFeatureSettings();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -52,11 +54,11 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-3">
-        <GlobalSearch />
+        {features.global_search && <GlobalSearch />}
         <AppSwitcher />
         {isAuthenticated && activeEmployee && (
           <div className="flex items-center gap-2">
-            <NotificationBell />
+            {features.notifications && <NotificationBell />}
             <div className="flex items-center gap-1.5">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-3.5 w-3.5 text-primary" />

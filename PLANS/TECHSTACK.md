@@ -103,12 +103,12 @@ type Permission = {
 
 ## 5. App Registry (Seed Data)
 
-| App ID | Name | URL | Required Permission |
-|---|---|---|---|
-| STOKIS | Stokis | app.mochikin.id/stokis | view_stokis |
-| MYSHIFT | Myshift | app.mochikin.id/myshift | view_myshift |
-| MYCUSTOMER | Mycustomer | app.mochikin.id/mycustomer | view_mycustomer |
-| MYHR | Myhr | app.mochikin.id/myhr | view_myhr |
+| App ID | Name | URL | Status | Required Permission |
+|---|---|---|---|---|
+| STOKIS | Stokis | https://stokis-project.vercel.app | ACTIVE | view_stokis |
+| MYSHIFT | Myshift | pending deployment | INACTIVE | view_myshift |
+| MYCUSTOMER | Mycustomer | https://retain-ly.vercel.app | ACTIVE | view_mycustomer |
+| MYHR | Myhr | pending deployment | INACTIVE | view_myhr |
 
 ## 6. Component Architecture
 
@@ -125,7 +125,7 @@ type Permission = {
 
 ### Data Files
 - `lib/types.ts` — domain types (App, Employee, Role, Permission)
-- `lib/constants.ts` — APP_NAME, APP_DOMAIN, APP_REGISTRY
+- `lib/constants.ts` — APP_NAME, ecosystem Vercel URLs, APP_REGISTRY
 - `stores/useLauncherStore.ts` — `useDomainStore` (Zustand + persist)
 - `hooks/` — (empty, hooks removed in Phase 0)
 

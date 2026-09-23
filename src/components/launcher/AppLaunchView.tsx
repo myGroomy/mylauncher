@@ -10,11 +10,12 @@ interface AppLaunchViewProps {
   app: App | null;
   appId: string;
   deepLink?: string | null;
+  handoffUrl?: string | null;
 }
 
-export function AppLaunchView({ app, appId, deepLink }: AppLaunchViewProps) {
+export function AppLaunchView({ app, appId, deepLink, handoffUrl }: AppLaunchViewProps) {
   const router = useRouter();
-  const href = app ? resolveAppUrl(app.url, deepLink) : "#";
+  const href = handoffUrl || (app ? resolveAppUrl(app.url, deepLink) : "#");
 
   return (
     <div className="flex flex-col items-center justify-center h-full space-y-4">

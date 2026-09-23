@@ -4,7 +4,7 @@
 The MOCHIKIN LAUNCHER project is an enterprise application launcher built with Next.js 16.x, React 19, and shadcn/ui. The foundation (Phase 0) has been implemented:
 
 - **Domain model**: `App`, `Employee`, `Role`, `Permission` types defined in `src/lib/types.ts`
-- **App Registry**: 4 seeded applications (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) with `app.mochikin.id/*` URLs
+- **App Registry**: STOKIS and MYCUSTOMER point to their Vercel deployments; MYSHIFT and MYHR remain registered but inactive until deployed
 - **State management**: Zustand + localStorage persist store (`useDomainStore`) with mock employee/role/permission data
 - **Routing**: `/` (login stub), `/launcher` (dashboard), `/launcher/[appId]` (loading), `/404`
 - **App-shell**: Sidebar + Header + AppShell layout with responsive mobile support
@@ -32,7 +32,7 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - Session revocation
 
 ### Phase 2 (SSO, Work Context, Session Sync) — Completed
-- Shared session cookie via `SESSION_COOKIE_DOMAIN` + `GET /api/auth/sso`
+- `GET /api/auth/sso` claims endpoint; shared cookie behavior is reserved for a future common production domain
 - Current Work Context via `/api/work-context` (MYSHIFT stub)
 - App switcher + cross-tab session sync (BroadcastChannel + poll)
 - Server registry-backed app access filtering
@@ -81,5 +81,28 @@ Phase 4 complete. Smoke: **35/35 pass** against prod `http://127.0.0.1:3001` (`/
 - Runtime smoke: **25/25 pass** against prod (`http://127.0.0.1:3001`); Sheets free tier is 60 read/min — avoid rapid re-runs.
 - Phase 4 smoke (`/tmp/smoke2.mjs`, 35 checks): reordering auth checks before logout, `audience: "*"`, emp_smoke2 already-exists tolerance, `ensureLauncherTabs` on announcement CRUD, accept audience `all` → **35/35 pass**.
 
+### Phase 5 (Production Hardening) — Completed
+- Quota-aware Sheets reads: 10-second server cache, per-tab invalidation after writes, in-flight request coalescing, and invalidation race protection.
+- Feed refresh: 30-second polling with visibility-aware refresh and no overlapping requests.
+- Richer SSO/session claims: employee name, role name, permissions, and base branch are available to sibling apps.
+- Verification script: `npm run verify` runs lint, TypeScript, and production build.
+- CI workflow: pull requests and pushes run the same verification script.
+- Production smoke script: `npm run smoke:prod` validates auth, SSO claims, registry, work context, feed, logout, and session revocation.
+- Manual GitHub Actions smoke workflow validates a configured deployment without exposing credentials in the repository.
+
+### Vercel deployment update — Completed
+- Login identity switched from employee ID to username; employee ID remains the stable internal identity.
+- Existing Employees rows migrate non-destructively by adding a unique `username` column.
+- STOKIS and MYCUSTOMER registry entries use their `.vercel.app` deployments.
+- MYSHIFT and MYHR remain inactive placeholders until their deployments are available.
+- On separate Vercel hostnames, sibling apps validate identity through `/api/auth/sso` instead of sharing cookies.
+
 ## Next up
-Phase 4 shipped and smoke-verified (35/35). Optional Phase 5 / production hardening: e.g. quota-aware caching, realtime feed, richer SSO claims, CI smoke job.
+Production is deployed at `https://mylauncher-two.vercel.app`; the requested
+`mylauncher.vercel.app` alias is taken by another Vercel account. The deployed
+smoke check passed 9/9. Cross-domain SSO handoff was validated against both
+STOKIS and MYCUSTOMER, including each app's `/api/auth/me` returning `200`.
+The shared registry now contains STOKIS-compatible `admin`, `crew`, and
+`viewer` users; all three direct STOKIS logins return `200` with PIN `1234`.
+Global feature visibility settings are available at `/admin/settings` and are
+stored in the `Settings` sheet.
