@@ -111,13 +111,14 @@ Use this workflow unless directed otherwise:
 3. App switcher + session sync ✅
 4. Server registry app filtering ✅
 
-### Phase 3 (Admin, RBAC, Audit, Sessions) — Done (pending verify/push)
+### Phase 3 (Admin, RBAC, Audit, Sessions) — Done
 1. Spreadsheet data layer (Employees/Roles/Permissions/AuditLogs/Sessions) ✅
 2. Admin API routes with `requireAdmin` + audit writes ✅
 3. Admin UI on `useAdminApi` hooks ✅
 4. Audit Log page + sidebar ✅
 5. Session list + revoke ✅
 6. Seed default roles/permissions on login ✅
+7. lint / tsc / build verified clean ✅
 
 ## 7. Architecture guidance
 - Use `src/lib/types.ts` for all domain types.

@@ -37,13 +37,14 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - App switcher + cross-tab session sync (BroadcastChannel + poll)
 - Server registry-backed app access filtering
 
-### Phase 3 (Admin, RBAC, Audit, Sessions) — In progress
+### Phase 3 (Admin, RBAC, Audit, Sessions) — Completed
 - Spreadsheet-backed server data layer (`data.ts`, `sessions` tab)
 - Admin API routes (`/api/admin/*`) with `requireAdmin` + audit writes
 - Admin UI rewired to `useAdminApi` hooks (employees, roles, permissions, apps, sessions)
 - Audit Log page (`/admin/audit`) + sidebar link
 - Seed defaults (`seedDefaultAuthData`) on first login
 - Session registry (sessionId cookie claim + revoke list)
+- Verified: `npm run lint`, `npx tsc --noEmit`, `npm run build` all clean
 
 ## Architecture
 - **Framework**: Next.js 16.x App Router
@@ -55,4 +56,4 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - **Deployment**: Vercel
 
 ## Recommended next step
-Finish Phase 3 verification: `npm run lint`, `npx tsc --noEmit`, `npm run build`, runtime smoke test, docs sync, then commit and push.
+Runtime smoke test against a seeded spreadsheet (login → launcher → admin → revoke session), grant SA Editor access, then proceed to Phase 4 per PRD scope.
