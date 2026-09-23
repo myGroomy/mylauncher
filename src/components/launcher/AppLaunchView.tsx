@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExternalLink, Lock } from "lucide-react";
 import type { App } from "@/lib/types";
+import { resolveAppUrl } from "@/lib/constants";
 
 interface AppLaunchViewProps {
   app: App | null;
@@ -23,7 +24,7 @@ export function AppLaunchView({ app, appId }: AppLaunchViewProps) {
             </CardHeader>
             <CardContent className="flex justify-center">
               <a
-                href={app.url}
+                href={resolveAppUrl(app.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"

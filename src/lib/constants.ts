@@ -3,6 +3,12 @@ import type { App } from "./types";
 export const APP_NAME = "MOCHIKIN LAUNCHER";
 export const APP_DOMAIN = "app.mochikin.id";
 
+/** Ensure registry URLs are absolute so external opens work with SSO cookie. */
+export function resolveAppUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `https://${url}`;
+}
+
 export const APP_REGISTRY: App[] = [
   {
     app_id: "STOKIS",

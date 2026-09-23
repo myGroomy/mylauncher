@@ -105,11 +105,14 @@ Use this workflow unless directed otherwise:
 4. Logout with session expiration
 5. Session revocation
 
-### Phase 2+ (Expand)
-1. Permission-based app filtering
-2. Employee management UI
-3. Role administration
-4. Audit logging
+### Phase 2+ (Expand) — Done
+1. Permission-based app filtering ✅
+2. Employee management UI ✅
+3. Role administration ✅
+4. Audit logging ✅
+5. SSO (`SESSION_COOKIE_DOMAIN` + `/api/auth/sso`) ✅
+6. Current Work Context via MYSHIFT stub (`/api/work-context`) ✅
+7. App switcher + session sync (BroadcastChannel + poll) ✅
 
 ## 7. Architecture guidance
 - Use `src/lib/types.ts` for all domain types.

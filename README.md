@@ -106,8 +106,14 @@ All demo accounts use PIN `1234`:
 
 ### Work Context
 - Current Work Context widget shows today's branch, shift, and time
-- Mock schedule source simulates MYSHIFT integration
+- Server source simulates MYSHIFT integration via `/api/work-context`
+- Empty state and "Updated via shift change" notes per PRD
 - Identity remains stable regardless of schedule/branch changes
+
+### Single Sign-On
+- Shared session cookie across `*.mochikin.id` when `SESSION_COOKIE_DOMAIN` is set
+- Sibling apps validate sessions via `GET /api/auth/sso`
+- Logout clears the central session cookie and broadcasts to open tabs
 
 ### Admin Panel
 Available to users with the `Admin` role:

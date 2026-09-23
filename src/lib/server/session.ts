@@ -7,6 +7,11 @@ import { getSessionEnv } from "./env";
 const COOKIE_NAME = "mochikin_launcher_session";
 const SESSION_SECONDS = Number(process.env.SESSION_EXPIRES_IN_SECONDS || 3600);
 
+function cookieDomain(): string | undefined {
+  const domain = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  return domain || undefined;
+}
+
 export interface SessionPayload {
   employeeId: string;
   roleId: string;
@@ -48,13 +53,19 @@ export async function setSession(payload: Omit<SessionPayload, "expiresAt">): Pr
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    domain: cookieDomain(),
     maxAge: SESSION_SECONDS,
   });
   return expiresAt;
 }
 
 export async function clearSession() {
-  (await cookies()).set(COOKIE_NAME, "", { httpOnly: true, expires: new Date(0), path: "/" });
+  (await cookies()).set(COOKIE_NAME, "", {
+    httpOnly: true,
+    expires: new Date(0),
+    path: "/",
+    domain: cookieDomain(),
+  });
 }
 
 export const sessionCookieName = COOKIE_NAME;
