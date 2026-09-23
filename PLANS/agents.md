@@ -98,21 +98,26 @@ Use this workflow unless directed otherwise:
 3. Auth/PIN stub ✅
 4. Docs sync ✅
 
-### Phase 1 (Authentication)
-1. Login with employee ID + PIN
-2. PIN hashing
-3. Failed login rate limiting
-4. Logout with session expiration
-5. Session revocation
+### Phase 1 (Authentication) — Done
+1. Login with employee ID + PIN ✅
+2. PIN hashing (scrypt) ✅
+3. Failed login rate limiting ✅
+4. Logout with session expiration ✅
+5. Session revocation ✅
 
-### Phase 2+ (Expand) — Done
-1. Permission-based app filtering ✅
-2. Employee management UI ✅
-3. Role administration ✅
-4. Audit logging ✅
-5. SSO (`SESSION_COOKIE_DOMAIN` + `/api/auth/sso`) ✅
-6. Current Work Context via MYSHIFT stub (`/api/work-context`) ✅
-7. App switcher + session sync (BroadcastChannel + poll) ✅
+### Phase 2 (SSO, Work Context, Session Sync) — Done
+1. SSO cookie domain + `/api/auth/sso` ✅
+2. Current Work Context via `/api/work-context` ✅
+3. App switcher + session sync ✅
+4. Server registry app filtering ✅
+
+### Phase 3 (Admin, RBAC, Audit, Sessions) — Done (pending verify/push)
+1. Spreadsheet data layer (Employees/Roles/Permissions/AuditLogs/Sessions) ✅
+2. Admin API routes with `requireAdmin` + audit writes ✅
+3. Admin UI on `useAdminApi` hooks ✅
+4. Audit Log page + sidebar ✅
+5. Session list + revoke ✅
+6. Seed default roles/permissions on login ✅
 
 ## 7. Architecture guidance
 - Use `src/lib/types.ts` for all domain types.

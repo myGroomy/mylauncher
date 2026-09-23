@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { useApps, usePermissions } from "@/hooks/useAdminApi";
 import { App } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,8 @@ const APP_ICONS = ["package", "calendar-days", "users", "building-columns", "lay
 const APP_STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
 
 export function AppManagement() {
-  const apps = useDomainStore((s) => s.apps);
-  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
-  const createApp = useDomainStore((s) => s.createApp);
-  const updateApp = useDomainStore((s) => s.updateApp);
-  const deleteApp = useDomainStore((s) => s.deleteApp);
+  const { apps, loading, error, create, update, remove } = useApps();
+  const { permissions } = usePermissions();
 
   const [form, setForm] = useState<Partial<App>>({ status: "ACTIVE", icon: "layout-grid" });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -30,18 +27,18 @@ export function AppManagement() {
     setEditingId(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.url || !form.required_permission) {
       toast.error("Name, URL, and permission are required");
       return;
     }
     if (editingId) {
-      const result = updateApp(editingId, form);
+      const result = await update(editingId, form);
       toast[result.success ? "success" : "error"](result.message);
       if (result.success) resetForm();
     } else {
-      const result = createApp(form as Omit<App, "app_id">);
+      const result = await create(form as Omit<App, "app_id"> & { app_id?: string });
       toast[result.success ? "success" : "error"](result.message);
       if (result.success) resetForm();
     }
@@ -51,6 +48,14 @@ export function AppManagement() {
     setEditingId(app.app_id);
     setForm({ ...app });
   }
+
+  async function handleDelete(appId: string) {
+    const result = await remove(appId);
+    toast[result.success ? "success" : "error"](result.message);
+  }
+
+  if (loading) return <p className="text-sm text-ink-soft">Loading apps…</p>;
+  if (error) return <p className="text-sm text-rose">{error}</p>;
 
   return (
     <div className="space-y-6">
@@ -75,7 +80,7 @@ export function AppManagement() {
                 <SelectValue placeholder="Required permission" />
               </SelectTrigger>
               <SelectContent>
-                {permissionsCatalog.map((p) => (
+                {permissions.map((p) => (
                   <SelectItem key={p.key} value={p.key}>{p.key}</SelectItem>
                 ))}
               </SelectContent>
@@ -137,12 +142,17 @@ export function AppManagement() {
                       <Button variant="ghost" size="icon" className="text-ash hover:text-ink" onClick={() => startEdit(app)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => deleteApp(app.app_id)}>
+                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => handleDelete(app.app_id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
                 ))}
+                {apps.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-sm text-ink-soft">No apps registered.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </ScrollArea>

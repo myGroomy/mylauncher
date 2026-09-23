@@ -37,6 +37,16 @@ export interface AuditLogEntry {
   details: string;
 }
 
+export interface AdminSessionInfo {
+  session_id: string;
+  employee_id: string;
+  role_id: string;
+  issued_at: string;
+  expires_at: string;
+  revoked_at: string;
+  active: boolean;
+}
+
 export interface Branch {
   branch_id: string;
   name: string;

@@ -25,18 +25,29 @@ export function spreadsheetId(): string {
   return getSheetsEnv().spreadsheetId;
 }
 
+export async function sheetExists(title: string): Promise<boolean> {
+  const sheets = getSheets();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: spreadsheetId() });
+  return Boolean(meta.data.sheets?.find((s) => s.properties?.title === title));
+}
+
 export async function ensureSheet(title: string, headers: string[]): Promise<void> {
   const sheets = getSheets();
   const id = spreadsheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const existing = meta.data.sheets?.find((s) => s.properties?.title === title);
-  if (!existing) {
+  const wasCreated = !existing;
+  if (wasCreated) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: id,
       requestBody: { requests: [{ addSheet: { properties: { title } } }] },
     });
   }
-  const range = `${title}!A1:${String.fromCharCode(64 + Math.min(headers.length, 26))}1`;
+  if (!wasCreated) return;
+  const endCol = headers.length <= 26
+    ? String.fromCharCode(64 + headers.length)
+    : "A";
+  const range = headers.length <= 26 ? `${title}!A1:${endCol}1` : `${title}!A1`;
   await sheets.spreadsheets.values.update({
     spreadsheetId: id,
     range,
@@ -81,14 +92,44 @@ export async function appendRow(title: string, values: (string | number)[]): Pro
   });
 }
 
+function columnLetter(n: number): string {
+  let result = "";
+  let num = n;
+  while (num > 0) {
+    const rem = (num - 1) % 26;
+    result = String.fromCharCode(65 + rem) + result;
+    num = Math.floor((num - 1) / 26);
+  }
+  return result;
+}
+
 export async function updateRowByIndex(title: string, dataIndex: number, values: (string | number)[]): Promise<void> {
   const sheets = getSheets();
   const sheetRow = dataIndex + 2;
-  const range = `${title}!A${sheetRow}:${String.fromCharCode(64 + values.length)}${sheetRow}`;
+  const endCol = columnLetter(values.length);
+  const range = `${title}!A${sheetRow}:${endCol}${sheetRow}`;
   await sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheetId(),
     range,
     valueInputOption: "RAW",
     requestBody: { values: [values] },
+  });
+}
+
+export async function deleteRowByIndex(title: string, dataIndex: number): Promise<void> {
+  const sheets = getSheets();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: spreadsheetId() });
+  const sheet = meta.data.sheets?.find((s) => s.properties?.title === title);
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) throw new Error(`Sheet not found: ${title}`);
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: spreadsheetId(),
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: "ROWS", startIndex: dataIndex + 1, endIndex: dataIndex + 2 },
+        },
+      }],
+    },
   });
 }

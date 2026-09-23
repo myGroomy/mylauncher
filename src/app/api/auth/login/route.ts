@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   findEmployee,
   getRole,
+  seedDefaultAuthData,
   updateEmployeeLock,
   verifyPin,
   writeAuditLog,
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   const employeeId = body.employeeId.trim();
 
   try {
+    await seedDefaultAuthData();
     const employee = await findEmployee(employeeId);
     if (!employee || employee.status !== "ACTIVE") {
       await writeAuditLog({

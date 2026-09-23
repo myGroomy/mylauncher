@@ -24,22 +24,30 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - Old personal launcher components removed
 - Docs synced with PRD
 
-### Phase 1 (Authentication)
+### Phase 1 (Authentication) — Completed
 - Login with employee ID + PIN
-- PIN hashing (not plaintext)
-- Failed login rate limiting
-- Logout with session expiration
+- PIN hashing (scrypt, not plaintext)
+- Failed login rate limiting (5 attempts → 5-minute lock)
+- Logout with session expiration (1 hour)
 - Session revocation
 
-### Phase 2+ (Expand)
-- Permission-based app access control
-- Employee management
-- Role administration
-- Audit logging
+### Phase 2 (SSO, Work Context, Session Sync) — Completed
+- Shared session cookie via `SESSION_COOKIE_DOMAIN` + `GET /api/auth/sso`
+- Current Work Context via `/api/work-context` (MYSHIFT stub)
+- App switcher + cross-tab session sync (BroadcastChannel + poll)
+- Server registry-backed app access filtering
+
+### Phase 3 (Admin, RBAC, Audit, Sessions) — In progress
+- Spreadsheet-backed server data layer (`data.ts`, `sessions` tab)
+- Admin API routes (`/api/admin/*`) with `requireAdmin` + audit writes
+- Admin UI rewired to `useAdminApi` hooks (employees, roles, permissions, apps, sessions)
+- Audit Log page (`/admin/audit`) + sidebar link
+- Seed defaults (`seedDefaultAuthData`) on first login
+- Session registry (sessionId cookie claim + revoke list)
 
 ## Architecture
 - **Framework**: Next.js 16.x App Router
-- **State**: Zustand with localStorage persistence (`useDomainStore`)
+- **State**: Zustand with localStorage persistence (`useDomainStore`) for UI/session mirror only; server truth is Google Sheets
 - **UI**: shadcn/ui + Tailwind CSS v4
 - **Icons**: Lucide React
 - **Design tokens**: Atlassian Naval Monochrome (from `globals.css`)
@@ -47,4 +55,4 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - **Deployment**: Vercel
 
 ## Recommended next step
-Proceed to Phase 1: Implement authentication (login/logout/PIN) with proper security controls.
+Finish Phase 3 verification: `npm run lint`, `npx tsc --noEmit`, `npm run build`, runtime smoke test, docs sync, then commit and push.

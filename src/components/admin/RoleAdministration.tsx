@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { useRoles, usePermissions } from "@/hooks/useAdminApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,11 +11,8 @@ import { Shield, Plus, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 
 export function RoleAdministration() {
-  const roles = useDomainStore((s) => s.roles);
-  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
-  const updateRole = useDomainStore((s) => s.updateRole);
-  const createRole = useDomainStore((s) => s.createRole);
-  const deleteRole = useDomainStore((s) => s.deleteRole);
+  const { roles, loading, error, create, updatePermissions, remove } = useRoles();
+  const { permissions } = usePermissions();
 
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
@@ -27,31 +24,38 @@ export function RoleAdministration() {
   };
 
   const togglePerm = (key: string) => {
-    setSelectedPerms((prev) =>
-      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
-    );
+    setSelectedPerms((prev) => (prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]));
   };
 
-  const saveRole = (roleId: string) => {
-    updateRole(roleId, selectedPerms);
-    setEditingRole(null);
-  };
+  async function saveRole(roleId: string) {
+    const result = await updatePermissions(roleId, selectedPerms);
+    toast[result.success ? "success" : "error"](result.message);
+    if (result.success) setEditingRole(null);
+  }
 
   const cancelEdit = () => {
     setEditingRole(null);
     setSelectedPerms([]);
   };
 
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newRoleName.trim()) {
       toast.error("Role name is required");
       return;
     }
-    const result = createRole({ name: newRoleName, permissions: [] });
+    const result = await create({ name: newRoleName, permissions: [] });
     toast[result.success ? "success" : "error"](result.message);
     if (result.success) setNewRoleName("");
   }
+
+  async function handleDelete(roleId: string) {
+    const result = await remove(roleId);
+    toast[result.success ? "success" : "error"](result.message);
+  }
+
+  if (loading) return <p className="text-sm text-ink-soft">Loading roles…</p>;
+  if (error) return <p className="text-sm text-rose">{error}</p>;
 
   return (
     <div className="space-y-6">
@@ -92,7 +96,7 @@ export function RoleAdministration() {
                   <div className="space-y-2">
                     <p className="text-xs text-ink-soft">Toggle permissions:</p>
                     <div className="flex flex-wrap gap-2">
-                      {permissionsCatalog.map((p) => (
+                      {permissions.map((p) => (
                         <Button
                           key={p.key}
                           variant={selectedPerms.includes(p.key) ? "default" : "outline"}
@@ -114,7 +118,7 @@ export function RoleAdministration() {
                     <Button variant="outline" size="sm" onClick={() => startEdit(role.role_id, role.permissions)}>
                       Edit Permissions
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-ash hover:text-rose" onClick={() => deleteRole(role.role_id)}>
+                    <Button variant="ghost" size="sm" className="text-ash hover:text-rose" onClick={() => handleDelete(role.role_id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -122,6 +126,7 @@ export function RoleAdministration() {
               </CardContent>
             </Card>
           ))}
+          {roles.length === 0 && <p className="text-sm text-ink-soft">No roles yet.</p>}
         </div>
       </ScrollArea>
     </div>

@@ -1,20 +1,21 @@
 "use client";
 
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { useAdminSessions, useApps, useAuditLogs, useEmployees, usePermissions, useRoles } from "@/hooks/useAdminApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, UserCheck, Shield, AppWindow, KeyRound, Users } from "lucide-react";
+import { Clock, UserCheck, Shield, AppWindow, KeyRound, Users, ScrollText } from "lucide-react";
 import Link from "next/link";
 
 export function AdminDashboard() {
-  const auditLog = useDomainStore((s) => s.getAuditLog());
-  const employees = useDomainStore((s) => s.employees);
-  const roles = useDomainStore((s) => s.roles);
-  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
-  const apps = useDomainStore((s) => s.apps);
-  const getAuditLog = useDomainStore((s) => s.getAuditLog);
+  const { employees } = useEmployees();
+  const { roles } = useRoles();
+  const { permissions } = usePermissions();
+  const { apps } = useApps();
+  const { sessions } = useAdminSessions();
+  const { logs } = useAuditLogs();
 
-  const recentLogs = getAuditLog().slice(-20).reverse();
+  const recentLogs = logs.slice(0, 20);
+  const activeSessions = sessions.filter((s) => s.active).length;
 
   return (
     <div className="space-y-6">
@@ -55,7 +56,7 @@ export function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-ink">{permissionsCatalog.length}</p>
+              <p className="text-3xl font-bold text-ink">{permissions.length}</p>
               <p className="text-xs text-ink-soft mt-1">Access keys</p>
             </CardContent>
           </Card>
@@ -90,30 +91,35 @@ export function AdminDashboard() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Defined Roles
+              <Shield className="h-4 w-4" /> Active Sessions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-ink">{roles.length}</p>
-            <p className="text-xs text-ink-soft mt-1">Role templates</p>
+            <p className="text-3xl font-bold text-ink">{activeSessions}</p>
+            <p className="text-xs text-ink-soft mt-1">Live logins</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Audit Events
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-ink">{auditLog.length}</p>
-            <p className="text-xs text-ink-soft mt-1">Total logged events</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/audit">
+          <Card className="hover:bg-secondary/50 transition-colors cursor-pointer">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
+                <Clock className="h-4 w-4" /> Audit Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-ink">{logs.length}</p>
+              <p className="text-xs text-ink-soft mt-1">Total logged events</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-bold text-ink">Recent Activity</CardTitle>
+          <CardTitle className="text-sm font-bold text-ink flex items-center gap-2">
+            <ScrollText className="h-4 w-4" /> Recent Activity
+            <Link href="/admin/audit" className="ml-auto text-xs font-normal text-mist hover:text-ink">View all</Link>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-64">
@@ -124,7 +130,7 @@ export function AdminDashboard() {
                 {recentLogs.map((entry) => (
                   <li key={entry.id} className="flex items-center gap-3 text-sm">
                     <span className="text-ink-soft font-mono text-xs">
-                      {new Date(entry.timestamp).toLocaleTimeString()}
+                      {entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : "—"}
                     </span>
                     <span className="text-ink">{entry.action}</span>
                     <span className="text-mist">{entry.employeeId || "system"}</span>

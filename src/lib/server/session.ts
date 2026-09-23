@@ -17,6 +17,7 @@ export interface SessionPayload {
   roleId: string;
   permissions: string[];
   expiresAt: number;
+  sessionId?: string;
 }
 
 function sign(value: string): string {
@@ -43,12 +44,23 @@ function decode(value: string): SessionPayload | null {
 
 export async function getSession(): Promise<SessionPayload | null> {
   const value = (await cookies()).get(COOKIE_NAME)?.value;
-  return value ? decode(value) : null;
+  const payload = value ? decode(value) : null;
+  if (!payload) return null;
+  if (payload.sessionId) {
+    try {
+      const { isSessionRevoked } = await import("./data");
+      if (await isSessionRevoked(payload.sessionId)) return null;
+    } catch (error) {
+      console.error("Session revocation check failed", error);
+    }
+  }
+  return payload;
 }
 
-export async function setSession(payload: Omit<SessionPayload, "expiresAt">): Promise<number> {
+export async function setSession(payload: Omit<SessionPayload, "expiresAt" | "sessionId"> & { sessionId?: string }): Promise<number> {
   const expiresAt = Date.now() + SESSION_SECONDS * 1000;
-  (await cookies()).set(COOKIE_NAME, encode({ ...payload, expiresAt }), {
+  const sessionId = payload.sessionId ?? crypto.randomUUID();
+  (await cookies()).set(COOKIE_NAME, encode({ ...payload, sessionId, expiresAt }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -56,6 +68,17 @@ export async function setSession(payload: Omit<SessionPayload, "expiresAt">): Pr
     domain: cookieDomain(),
     maxAge: SESSION_SECONDS,
   });
+  try {
+    const { registerSession } = await import("./data");
+    await registerSession({
+      session_id: sessionId,
+      employee_id: payload.employeeId,
+      role_id: payload.roleId,
+      expires_at: expiresAt,
+    });
+  } catch (error) {
+    console.error("Session register failed", error);
+  }
   return expiresAt;
 }
 

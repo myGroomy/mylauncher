@@ -16,6 +16,7 @@ import {
   KeyRound,
   AppWindow,
   LogOut,
+  ScrollText,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -111,6 +112,11 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
                 icon={<LogOut className="h-4 w-4" />}
                 label="Sessions"
                 href="/admin/sessions"
+              />
+              <SidebarButton
+                icon={<ScrollText className="h-4 w-4" />}
+                label="Audit Log"
+                href="/admin/audit"
               />
             </>
           )}

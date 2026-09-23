@@ -145,7 +145,8 @@ src/
 │       ├── roles/page.tsx
 │       ├── permissions/page.tsx
 │       ├── apps/page.tsx
-│       └── sessions/page.tsx
+│       ├── sessions/page.tsx
+│       └── audit/page.tsx
 ├── components/
 │   ├── ui/                     # shadcn/ui components
 │   ├── layout/                 # AppShell, Header, Sidebar, ThemeToggle, AppSwitcher
@@ -156,11 +157,13 @@ src/
 ├── lib/
 │   ├── types.ts                # Domain types
 │   ├── constants.ts            # App name + registry constants
-│   └── utils.ts                # cn() helper
+│   ├── utils.ts                # cn() helper
+│   └── server/                 # sheets, data, session, registry, adminGuard (server-only)
 ├── stores/
 │   └── useLauncherStore.ts     # useDomainStore (Zustand + persist)
 └── hooks/
-    └── useSessionSync.ts       # Cross-tab session synchronization
+    ├── useSessionSync.ts       # Cross-tab session synchronization
+    └── useAdminApi.ts          # Admin CRUD hooks → /api/admin/*
 ```
 
 ## Available Scripts
@@ -175,10 +178,12 @@ src/
 ## Data & Persistence
 
 The app runs in full Google Sheets mode: employee identity, roles, permissions, audit
-logs, and the app registry all live in one spreadsheet (multi-tab: `Employees`, `Roles`,
-`Permissions`, `AuditLogs`, plus the registry tab). Access is server-side via a Google
-service account. Zustand is retained only for non-sensitive UI/cache state; PINs,
-service account keys, and session secrets must never be stored in browser localStorage.
+logs, sessions, and the app registry all live in one spreadsheet (multi-tab: `Employees`,
+`Roles`, `Permissions`, `AuditLogs`, `Sessions`, plus the registry tab). Access is
+server-side via a Google service account. Default roles/permissions seed automatically on
+first login (`seedDefaultAuthData`). Zustand is retained only for non-sensitive UI/cache
+state; PINs, service account keys, and session secrets must never be stored in browser
+localStorage.
 
 Copy `.env.example` to `.env.local` and configure server-only credentials before running
 the application. Share the spreadsheet with the service account email as **Editor**

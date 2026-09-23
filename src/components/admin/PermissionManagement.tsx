@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { usePermissions } from "@/hooks/useAdminApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,15 +11,13 @@ import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function PermissionManagement() {
-  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
-  const createPermission = useDomainStore((s) => s.createPermission);
-  const deletePermission = useDomainStore((s) => s.deletePermission);
+  const { permissions, loading, error, create, remove } = usePermissions();
   const [key, setKey] = useState("");
   const [description, setDescription] = useState("");
 
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    const result = createPermission({ key, description });
+    const result = await create({ key, description });
     if (result.success) {
       toast.success(result.message);
       setKey("");
@@ -28,6 +26,14 @@ export function PermissionManagement() {
       toast.error(result.message);
     }
   }
+
+  async function handleDelete(permKey: string) {
+    const result = await remove(permKey);
+    toast[result.success ? "success" : "error"](result.message);
+  }
+
+  if (loading) return <p className="text-sm text-ink-soft">Loading permissions…</p>;
+  if (error) return <p className="text-sm text-rose">{error}</p>;
 
   return (
     <div className="space-y-6">
@@ -65,19 +71,24 @@ export function PermissionManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
-                {permissionsCatalog.map((perm) => (
+                {permissions.map((perm) => (
                   <tr key={perm.key} className="hover:bg-secondary/50">
                     <td className="py-2 text-xs font-mono text-ink">
                       <Badge variant="secondary" className="text-xs">{perm.key}</Badge>
                     </td>
                     <td className="py-2 text-sm text-ink">{perm.description}</td>
                     <td className="py-2">
-                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => deletePermission(perm.key)}>
+                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => handleDelete(perm.key)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
                 ))}
+                {permissions.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-sm text-ink-soft">No permissions yet.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </ScrollArea>
