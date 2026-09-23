@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AdminSessionInfo, App, AuditLogEntry, Employee, Permission, Role } from "@/lib/types";
+import type { AdminSessionInfo, Announcement, App, AuditLogEntry, Employee, Permission, Role } from "@/lib/types";
 
 interface AsyncState<T> {
   data: T | null;
@@ -222,6 +222,48 @@ export function useApps() {
 
   return {
     apps: list.data ?? [],
+    loading: list.data === null && !list.error,
+    error: list.error,
+    create,
+    update,
+    remove,
+  };
+}
+
+export function useAnnouncements() {
+  const list = useAsyncList<Announcement[]>("/api/admin/announcements");
+
+  const create = useCallback(async (input: Record<string, unknown>) => {
+    const result = await mutate("/api/admin/announcements", "POST", input);
+    if (result.success) list.refetch();
+    return result;
+  }, [list]);
+
+  const update = useCallback(
+    async (announcementId: string, updates: Record<string, unknown>) => {
+      const result = await mutate("/api/admin/announcements", "PATCH", {
+        announcement_id: announcementId,
+        ...updates,
+      });
+      if (result.success) list.refetch();
+      return result;
+    },
+    [list]
+  );
+
+  const remove = useCallback(
+    async (announcementId: string) => {
+      const result = await mutate("/api/admin/announcements", "DELETE", {
+        announcement_id: announcementId,
+      });
+      if (result.success) list.refetch();
+      return result;
+    },
+    [list]
+  );
+
+  return {
+    announcements: list.data ?? [],
     loading: list.data === null && !list.error,
     error: list.error,
     create,

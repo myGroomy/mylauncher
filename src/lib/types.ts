@@ -75,3 +75,34 @@ export interface WorkContext {
   shift: Shift | null;
   schedule: ScheduleEntry | null;
 }
+
+export type AnnouncementSeverity = "info" | "warning" | "critical";
+
+export interface Announcement {
+  announcement_id: string;
+  title: string;
+  body: string;
+  severity: AnnouncementSeverity;
+  status: "ACTIVE" | "ARCHIVED";
+  audience: string;
+  created_at: string;
+  created_by: string;
+  expires_at: string;
+}
+
+export interface NotificationItem {
+  notification_id: string;
+  employee_id: string;
+  title: string;
+  body: string;
+  type: string;
+  link: string;
+  created_at: string;
+  read_at: string;
+}
+
+export interface HomeFeed {
+  announcements: Announcement[];
+  notifications: NotificationItem[];
+  activity: AuditLogEntry[];
+}

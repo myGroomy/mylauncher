@@ -4,9 +4,19 @@ export const APP_NAME = "MOCHIKIN LAUNCHER";
 export const APP_DOMAIN = "app.mochikin.id";
 
 /** Ensure registry URLs are absolute so external opens work with SSO cookie. */
-export function resolveAppUrl(url: string): string {
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `https://${url}`;
+export function resolveAppUrl(url: string, deepLink?: string | null): string {
+  const base = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+  if (!deepLink) return base;
+  try {
+    const target = new URL(base);
+    const extra = new URL(deepLink, target);
+    target.pathname = extra.pathname === "/" ? target.pathname : `${target.pathname.replace(/\/$/, "")}${extra.pathname}`;
+    extra.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+    if (extra.hash) target.hash = extra.hash;
+    return target.toString();
+  } catch {
+    return base;
+  }
 }
 
 export const APP_REGISTRY: App[] = [

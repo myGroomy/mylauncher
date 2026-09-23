@@ -3,6 +3,8 @@
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { AppSwitcher } from "@/components/layout/AppSwitcher";
+import { GlobalSearch } from "@/components/launcher/GlobalSearch";
+import { NotificationBell } from "@/components/launcher/NotificationBell";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,9 +52,11 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-3">
+        <GlobalSearch />
         <AppSwitcher />
         {isAuthenticated && activeEmployee && (
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <div className="flex items-center gap-1.5">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-3.5 w-3.5 text-primary" />

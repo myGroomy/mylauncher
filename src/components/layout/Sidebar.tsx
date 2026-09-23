@@ -17,6 +17,7 @@ import {
   AppWindow,
   LogOut,
   ScrollText,
+  Megaphone,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -107,6 +108,11 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
                 icon={<AppWindow className="h-4 w-4" />}
                 label="Applications"
                 href="/admin/apps"
+              />
+              <SidebarButton
+                icon={<Megaphone className="h-4 w-4" />}
+                label="Announcements"
+                href="/admin/announcements"
               />
               <SidebarButton
                 icon={<LogOut className="h-4 w-4" />}

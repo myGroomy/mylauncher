@@ -1,0 +1,178 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bell, Info, AlertTriangle, AlertOctagon, CheckCheck } from "lucide-react";
+import { useFeed, markNotificationRead } from "@/hooks/useFeed";
+import { useDomainStore } from "@/stores/useLauncherStore";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import type { Announcement, NotificationItem } from "@/lib/types";
+
+function formatWhen(iso: string): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  const diff = Date.now() - t;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return new Date(t).toLocaleDateString();
+}
+
+function severityIcon(severity: Announcement["severity"]) {
+  if (severity === "critical") return <AlertOctagon className="h-3.5 w-3.5 text-rose shrink-0" />;
+  if (severity === "warning") return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" />;
+  return <Info className="h-3.5 w-3.5 text-accent shrink-0" />;
+}
+
+export function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const { feed, unreadCount, refetch, loaded } = useFeed();
+  const roleId = useDomainStore((s) => s.roleId);
+  const dismissed = useDomainStore((s) => s.dismissedAnnouncements);
+  const dismissAnnouncement = useDomainStore((s) => s.dismissAnnouncement);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (next && loaded) refetch();
+  }
+
+  async function handleRead(n: NotificationItem) {
+    if (n.read_at) return;
+    const result = await markNotificationRead(n.notification_id);
+    if (result.success) refetch();
+  }
+
+  async function handleReadAll() {
+    await Promise.all(
+      feed.notifications.filter((n) => !n.read_at).map((n) => markNotificationRead(n.notification_id))
+    );
+    refetch();
+  }
+
+  const visibleAnnouncements = feed.announcements.filter((a) => !dismissed.includes(a.announcement_id));
+
+  return (
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetTrigger
+        render={
+          <Button variant="ghost" size="icon" className="relative text-ash hover:text-ink" aria-label="Notifications" />
+        }
+      >
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose px-1 text-[10px] font-bold text-white">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle className="flex items-center justify-between gap-2 pr-8">
+            Notifications
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleReadAll}>
+                <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+              </Button>
+            )}
+          </SheetTitle>
+          <SheetDescription>
+            {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
+            {roleId ? ` · role ${roleId}` : ""}
+          </SheetDescription>
+        </SheetHeader>
+
+        <ScrollArea className="flex-1 -mx-4 px-4 min-h-0">
+          <div className="space-y-4 pb-4">
+            {visibleAnnouncements.length > 0 && (
+              <section>
+                <p className="text-xs font-semibold text-ink-soft mb-2">Announcements</p>
+                <ul className="space-y-2">
+                  {visibleAnnouncements.map((a) => (
+                    <li key={a.announcement_id} className="rounded-lg border border-hairline p-3 space-y-1">
+                      <div className="flex items-start gap-2">
+                        {severityIcon(a.severity)}
+                        <p className="text-sm font-semibold text-ink flex-1">{a.title}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px] text-ink-soft"
+                          onClick={() => dismissAnnouncement(a.announcement_id)}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                      <p className="text-xs text-ink-soft pl-5.5">{a.body}</p>
+                      <p className="text-[10px] text-mist pl-5.5">{formatWhen(a.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section>
+              <p className="text-xs font-semibold text-ink-soft mb-2">Personal</p>
+              {feed.notifications.length === 0 ? (
+                <p className="text-xs text-mist">No personal notifications.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {feed.notifications.map((n) => (
+                    <li
+                      key={n.notification_id}
+                      className={`rounded-lg border p-2.5 cursor-pointer transition-colors hover:bg-secondary/60 ${
+                        n.read_at ? "border-hairline opacity-70" : "border-accent/30 bg-accent/5"
+                      }`}
+                      onClick={() => {
+                        void handleRead(n);
+                        if (n.link) {
+                          setOpen(false);
+                          router.push(n.link);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {!n.read_at && <span className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />}
+                        <p className="text-sm font-medium text-ink flex-1 truncate">{n.title}</p>
+                        <Badge variant="secondary" className="text-[10px]">{n.type}</Badge>
+                      </div>
+                      {n.body && <p className="text-xs text-ink-soft mt-1 line-clamp-2">{n.body}</p>}
+                      <p className="text-[10px] text-mist mt-1">{formatWhen(n.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <p className="text-xs font-semibold text-ink-soft mb-2">Recent activity</p>
+              {feed.activity.length === 0 ? (
+                <p className="text-xs text-mist">No activity yet.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {feed.activity.slice(0, 8).map((entry) => (
+                    <li key={entry.id} className="flex items-baseline gap-2 text-xs">
+                      <span className="font-mono text-ink">{entry.action}</span>
+                      <span className="text-mist flex-1 truncate">{entry.details}</span>
+                      <span className="text-mist shrink-0">{formatWhen(new Date(entry.timestamp).toISOString())}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}

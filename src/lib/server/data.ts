@@ -1,7 +1,7 @@
 import "server-only";
 
 import { scryptSync, randomBytes, timingSafeEqual, randomUUID } from "node:crypto";
-import type { AuditLogEntry, Employee, Permission, Role } from "@/lib/types";
+import type { Announcement, AnnouncementSeverity, AuditLogEntry, Employee, NotificationItem, Permission, Role } from "@/lib/types";
 import { appendRow, deleteRowByIndex, ensureSheet, readSheet, rowsToObjects, updateRowByIndex } from "./sheets";
 
 export const TABS = {
@@ -11,6 +11,8 @@ export const TABS = {
   audit: "AuditLogs",
   sessions: "Sessions",
   apps: "Apps",
+  announcements: "Announcements",
+  notifications: "Notifications",
 } as const;
 
 const EMPLOYEE_HEADERS = [
@@ -35,6 +37,27 @@ const SESSION_HEADERS = [
   "revoked_at",
 ];
 const APP_HEADERS = ["app_id", "name", "url", "icon", "status", "required_permission"];
+const ANNOUNCEMENT_HEADERS = [
+  "announcement_id",
+  "title",
+  "body",
+  "severity",
+  "status",
+  "audience",
+  "created_at",
+  "created_by",
+  "expires_at",
+];
+const NOTIFICATION_HEADERS = [
+  "notification_id",
+  "employee_id",
+  "title",
+  "body",
+  "type",
+  "link",
+  "created_at",
+  "read_at",
+];
 
 export interface SheetEmployee {
   employee_id: string;
@@ -101,6 +124,8 @@ export async function ensureLauncherTabs(): Promise<void> {
       await ensureSheet(TABS.audit, AUDIT_HEADERS);
       await ensureSheet(TABS.sessions, SESSION_HEADERS);
       await ensureSheet(TABS.apps, APP_HEADERS);
+      await ensureSheet(TABS.announcements, ANNOUNCEMENT_HEADERS);
+      await ensureSheet(TABS.notifications, NOTIFICATION_HEADERS);
       seeded = true;
     })().catch((error) => {
       ensurePromise = null;
@@ -409,6 +434,218 @@ export async function readAuditLogs(limit = 100): Promise<AuditLogEntry[]> {
     }))
     .sort((a, b) => b.timestamp - a.timestamp);
   return entries.slice(0, limit);
+}
+
+export async function readAuditLogsForEmployee(employeeId: string, limit = 20): Promise<AuditLogEntry[]> {
+  const { rows } = await readObjects(TABS.audit);
+  const entries: AuditLogEntry[] = rows
+    .filter((row) => row.id && (row.actor_employee_id || "").trim() === employeeId)
+    .map((row) => ({
+      id: row.id,
+      timestamp: row.created_at ? Date.parse(row.created_at) || 0 : 0,
+      action: row.action || "",
+      employeeId: row.actor_employee_id || null,
+      details: [row.target, row.details].filter(Boolean).join(" · "),
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
+  return entries.slice(0, limit);
+}
+
+// ── Announcements ──────────────────────────────────────────
+
+function mapAnnouncement(row: Record<string, string>): Announcement {
+  const severity = (row.severity || "info").toLowerCase();
+  return {
+    announcement_id: (row.announcement_id || "").trim(),
+    title: row.title || "",
+    body: row.body || "",
+    severity: (["warning", "critical"].includes(severity) ? severity : "info") as AnnouncementSeverity,
+    status: (row.status || "ACTIVE").toUpperCase() === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
+    audience: (row.audience || "").trim(),
+    created_at: row.created_at || "",
+    created_by: row.created_by || "",
+    expires_at: row.expires_at || "",
+  };
+}
+
+function announcementRow(a: Announcement): string[] {
+  return [
+    a.announcement_id,
+    a.title,
+    a.body,
+    a.severity,
+    a.status,
+    a.audience,
+    a.created_at,
+    a.created_by,
+    a.expires_at,
+  ];
+}
+
+export async function listAnnouncements(options?: { includeArchived?: boolean }): Promise<Announcement[]> {
+  await ensureLauncherTabs();
+  const { rows } = await readObjects(TABS.announcements);
+  const list = rows
+    .filter((row) => (row.announcement_id || "").trim())
+    .map(mapAnnouncement);
+  return options?.includeArchived ? list : list.filter((a) => a.status === "ACTIVE");
+}
+
+export async function listActiveAnnouncementsForRole(roleId: string): Promise<Announcement[]> {
+  const now = Date.now();
+  const list = await listAnnouncements();
+  return list.filter((a) => {
+    if (a.expires_at && Date.parse(a.expires_at) < now) return false;
+    if (a.audience && a.audience !== roleId && a.audience !== "*" && a.audience !== "all") return false;
+    return true;
+  });
+}
+
+export async function createAnnouncement(input: {
+  title: string;
+  body: string;
+  severity?: AnnouncementSeverity;
+  audience?: string;
+  created_by?: string;
+  expires_at?: string;
+}): Promise<{ success: boolean; message: string; announcement?: Announcement }> {
+  const title = input.title.trim();
+  const body = input.body.trim();
+  if (!title || !body) return { success: false, message: "Title and body are required" };
+  const announcement: Announcement = {
+    announcement_id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    body,
+    severity: input.severity || "info",
+    status: "ACTIVE",
+    audience: (() => {
+      const a = (input.audience || "").trim();
+      return a === "all" || a === "All" ? "*" : a;
+    })(),
+    created_at: new Date().toISOString(),
+    created_by: input.created_by || "",
+    expires_at: input.expires_at || "",
+  };
+  await ensureLauncherTabs();
+  await appendRow(TABS.announcements, announcementRow(announcement));
+  return { success: true, message: "Announcement created", announcement };
+}
+
+export async function updateAnnouncement(
+  announcementId: string,
+  updates: Partial<Pick<Announcement, "title" | "body" | "severity" | "status" | "audience" | "expires_at">>
+): Promise<{ success: boolean; message: string }> {
+  await ensureLauncherTabs();
+  const { rows } = await readObjects(TABS.announcements);
+  const idx = rows.findIndex((r) => (r.announcement_id || "").trim() === announcementId);
+  if (idx < 0) return { success: false, message: "Announcement not found" };
+  const current = mapAnnouncement(rows[idx]);
+  const audience =
+    updates.audience !== undefined
+      ? updates.audience.trim() === "all"
+        ? "*"
+        : updates.audience.trim()
+      : undefined;
+  const next: Announcement = {
+    ...current,
+    ...updates,
+    ...(audience !== undefined ? { audience } : {}),
+    announcement_id: current.announcement_id,
+  };
+  await updateRowByIndex(TABS.announcements, idx, announcementRow(next));
+  return { success: true, message: "Announcement updated" };
+}
+
+export async function deleteAnnouncement(announcementId: string): Promise<{ success: boolean; message: string }> {
+  await ensureLauncherTabs();
+  const { rows } = await readObjects(TABS.announcements);
+  const idx = rows.findIndex((r) => (r.announcement_id || "").trim() === announcementId);
+  if (idx < 0) return { success: false, message: "Announcement not found" };
+  await deleteRowByIndex(TABS.announcements, idx);
+  return { success: true, message: "Announcement deleted" };
+}
+
+// ── Notifications ──────────────────────────────────────────
+
+function mapNotification(row: Record<string, string>): NotificationItem {
+  return {
+    notification_id: (row.notification_id || "").trim(),
+    employee_id: (row.employee_id || "").trim(),
+    title: row.title || "",
+    body: row.body || "",
+    type: row.type || "info",
+    link: row.link || "",
+    created_at: row.created_at || "",
+    read_at: row.read_at || "",
+  };
+}
+
+function notificationRow(n: NotificationItem): string[] {
+  return [n.notification_id, n.employee_id, n.title, n.body, n.type, n.link, n.created_at, n.read_at];
+}
+
+export async function listNotificationsForEmployee(employeeId: string, limit = 30): Promise<NotificationItem[]> {
+  const { rows } = await readObjects(TABS.notifications);
+  return rows
+    .filter((row) => (row.notification_id || "").trim() && (row.employee_id || "").trim() === employeeId)
+    .map(mapNotification)
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+    .slice(0, limit);
+}
+
+export async function createNotification(input: {
+  employee_id: string;
+  title: string;
+  body?: string;
+  type?: string;
+  link?: string;
+}): Promise<{ success: boolean; message: string; notification?: NotificationItem }> {
+  const employeeId = input.employee_id.trim();
+  const title = input.title.trim();
+  if (!employeeId || !title) return { success: false, message: "employee_id and title are required" };
+  const notification: NotificationItem = {
+    notification_id: `ntf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    employee_id: employeeId,
+    title,
+    body: input.body || "",
+    type: input.type || "info",
+    link: input.link || "",
+    created_at: new Date().toISOString(),
+    read_at: "",
+  };
+  await ensureLauncherTabs();
+  await appendRow(TABS.notifications, notificationRow(notification));
+  return { success: true, message: "Notification created", notification };
+}
+
+export async function markNotificationRead(
+  notificationId: string,
+  employeeId: string
+): Promise<{ success: boolean; message: string }> {
+  const { rows } = await readObjects(TABS.notifications);
+  const idx = rows.findIndex(
+    (r) =>
+      (r.notification_id || "").trim() === notificationId &&
+      (r.employee_id || "").trim() === employeeId
+  );
+  if (idx < 0) return { success: false, message: "Notification not found" };
+  const current = mapNotification(rows[idx]);
+  if (current.read_at) return { success: true, message: "Already read" };
+  current.read_at = new Date().toISOString();
+  await updateRowByIndex(TABS.notifications, idx, notificationRow(current));
+  return { success: true, message: "Notification marked read" };
+}
+
+export async function deleteNotification(notificationId: string, employeeId: string): Promise<{ success: boolean; message: string }> {
+  const { rows } = await readObjects(TABS.notifications);
+  const idx = rows.findIndex(
+    (r) =>
+      (r.notification_id || "").trim() === notificationId &&
+      (r.employee_id || "").trim() === employeeId
+  );
+  if (idx < 0) return { success: false, message: "Notification not found" };
+  await deleteRowByIndex(TABS.notifications, idx);
+  return { success: true, message: "Notification deleted" };
 }
 
 // ── Sessions registry ──────────────────────────────────────

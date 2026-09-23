@@ -55,8 +55,19 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - **Fonts**: Plus Jakarta Sans + Geist Mono
 - **Deployment**: Vercel
 
+### Phase 4 (Notifications, Search, Announcements, Status, Recent/Favorites, Activity, Deep Linking) — Completed
+- `GET /api/feed` → announcements + personal notifications + audit activity for the session employee
+- `PATCH /api/notifications` → mark read / delete personal notifications
+- Admin announcements CRUD: `/api/admin/announcements` (GET/POST/PATCH/DELETE, `requireAdmin`, audit) + `AnnouncementManagement` UI at `/admin/announcements` + sidebar link
+- Global Search: cmdk `CommandDialog` in `Header` (`GlobalSearch.tsx`), searches accessible apps + admin routes
+- Notification Bell: unread badge, dropdown list, mark-read/delete via `useFeed`/`markNotificationRead`
+- Dashboard cards: dismissible announcement banners (store-persisted `dismissedAnnouncements`), Favorites, Recent, System Status, Recent Activity
+- Favorites/recent persisted in Zustand; logout clears favorites/recent/dismissed
+- Deep linking: `/launcher/[appId]?path=...&...` merged into registry URL via `resolveAppUrl`; `app_open` audit best-effort
+- Verified: `npm run lint` 0 errors, `npx tsc --noEmit` clean, `npm run build` 28 pages including `/admin/announcements`
+
 ## Recommended next step
-Optional Phase 4 per PRD line 1847: Notifications, Global Search, Announcement, System Status, Recent/Favorite Apps, Activity, Cross-App Deep Linking.
+Phase 4 complete. Smoke: **35/35 pass** against prod `http://127.0.0.1:3001` (`/tmp/smoke2.mjs`).
 
 ### Smoke-test fixes (2026-09-23)
 - `ensureSheet`: tolerate concurrent `addSheet` (400 "already exists") on first login.
@@ -68,6 +79,7 @@ Optional Phase 4 per PRD line 1847: Notifications, Global Search, Announcement, 
 - `readSheet`: no longer swallows API errors (quota 429 used to return `[]`, re-seeding duplicates and failing revoke checks).
 - SA Editor share verified (direct Sheets API read/write OK).
 - Runtime smoke: **25/25 pass** against prod (`http://127.0.0.1:3001`); Sheets free tier is 60 read/min — avoid rapid re-runs.
+- Phase 4 smoke (`/tmp/smoke2.mjs`, 35 checks): reordering auth checks before logout, `audience: "*"`, emp_smoke2 already-exists tolerance, `ensureLauncherTabs` on announcement CRUD, accept audience `all` → **35/35 pass**.
 
 ## Next up
-Optional Phase 4 per PRD: Notifications, Global Search, Announcement, System Status, Recent/Favorite Apps, Activity, Cross-App Deep Linking.
+Phase 4 shipped and smoke-verified (35/35). Optional Phase 5 / production hardening: e.g. quota-aware caching, realtime feed, richer SSO claims, CI smoke job.

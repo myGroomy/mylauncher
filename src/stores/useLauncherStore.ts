@@ -33,6 +33,9 @@ interface DomainState extends AuthState {
   schedules: ScheduleEntry[];
   activeEmployee: Employee | null;
   auditLog: AuditLogEntry[];
+  favorites: string[];
+  recentApps: string[];
+  dismissedAnnouncements: string[];
 
   hydrateSession: (session: SessionUser) => void;
   setApps: (apps: App[]) => void;
@@ -46,6 +49,9 @@ interface DomainState extends AuthState {
   updateEmployeeRole: (employeeId: string, role: string) => void;
   getWorkContext: () => WorkContext;
   getCurrentDate: () => string;
+  toggleFavorite: (appId: string) => void;
+  pushRecentApp: (appId: string) => void;
+  dismissAnnouncement: (announcementId: string) => void;
 
   // Employee CRUD
   createEmployee: (employee: Omit<Employee, "employee_id"> & { employee_id?: string }) => { success: boolean; message: string };
@@ -140,6 +146,9 @@ export const useDomainStore = create<DomainState>()(
       permissions: [],
       sessionExpiry: null,
       auditLog: [],
+      favorites: [],
+      recentApps: [],
+      dismissedAnnouncements: [],
 
       hydrateSession: (session) => {
         set({
@@ -169,6 +178,9 @@ export const useDomainStore = create<DomainState>()(
           permissions: [],
           sessionExpiry: null,
           auditLog: addLog(state, "LOGOUT", state.employeeId, "Session terminated"),
+          favorites: [],
+          recentApps: [],
+          dismissedAnnouncements: [],
         });
       },
 
@@ -181,7 +193,31 @@ export const useDomainStore = create<DomainState>()(
           permissions: [],
           sessionExpiry: null,
           auditLog: addLog(state, "SESSION_REVOKED", state.employeeId, "Session manually revoked"),
+          favorites: [],
+          recentApps: [],
+          dismissedAnnouncements: [],
         });
+      },
+
+      toggleFavorite: (appId) => {
+        const { favorites } = get();
+        set({
+          favorites: favorites.includes(appId)
+            ? favorites.filter((id) => id !== appId)
+            : [...favorites, appId],
+        });
+      },
+
+      pushRecentApp: (appId) => {
+        const { recentApps } = get();
+        const next = [appId, ...recentApps.filter((id) => id !== appId)].slice(0, 8);
+        set({ recentApps: next });
+      },
+
+      dismissAnnouncement: (announcementId) => {
+        const { dismissedAnnouncements } = get();
+        if (dismissedAnnouncements.includes(announcementId)) return;
+        set({ dismissedAnnouncements: [...dismissedAnnouncements, announcementId].slice(-50) });
       },
 
       getAccessibleApps: () => {

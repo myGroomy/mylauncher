@@ -9,10 +9,12 @@ import { resolveAppUrl } from "@/lib/constants";
 interface AppLaunchViewProps {
   app: App | null;
   appId: string;
+  deepLink?: string | null;
 }
 
-export function AppLaunchView({ app, appId }: AppLaunchViewProps) {
+export function AppLaunchView({ app, appId, deepLink }: AppLaunchViewProps) {
   const router = useRouter();
+  const href = app ? resolveAppUrl(app.url, deepLink) : "#";
 
   return (
     <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -24,7 +26,7 @@ export function AppLaunchView({ app, appId }: AppLaunchViewProps) {
             </CardHeader>
             <CardContent className="flex justify-center">
               <a
-                href={resolveAppUrl(app.url)}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
