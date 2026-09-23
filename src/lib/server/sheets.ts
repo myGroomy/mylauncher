@@ -66,15 +66,13 @@ export async function ensureSheet(title: string, headers: string[]): Promise<voi
 
 export async function readSheet(title: string): Promise<string[][]> {
   const sheets = getSheets();
-  try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: spreadsheetId(),
-      range: `${title}!A:Z`,
-    });
-    return (res.data.values || []) as string[][];
-  } catch {
-    return [];
-  }
+  // Do not swallow API errors (quota/network): returning [] would make
+  // seedDefaultAuthData re-append demo rows and hide revoke failures.
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId(),
+    range: `${title}!A:Z`,
+  });
+  return (res.data.values || []) as string[][];
 }
 
 export function rowsToObjects(rows: string[][]): Record<string, string>[] {

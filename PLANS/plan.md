@@ -56,11 +56,18 @@ Build the enterprise application launcher (MOCHIKIN LAUNCHER) — a centralized 
 - **Deployment**: Vercel
 
 ## Recommended next step
-Runtime smoke test against a seeded spreadsheet (login → launcher → admin → revoke session), grant SA Editor access, then proceed to Phase 4 per PRD scope.
+Optional Phase 4 per PRD line 1847: Notifications, Global Search, Announcement, System Status, Recent/Favorite Apps, Activity, Cross-App Deep Linking.
 
 ### Smoke-test fixes (2026-09-23)
 - `ensureSheet`: tolerate concurrent `addSheet` (400 "already exists") on first login.
 - `ensureLauncherTabs`: single-flight promise so parallel requests don't race.
-- `seedDefaultAuthData`: seed demo employees `emp_001`/`002`/`003` (PIN `1234`) when empty.
-- Registry: seed PRD defaults (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) when Apps tab empty.
+- `seedDefaultAuthData`: seed demo employees `emp_001`/`002`/`003` (PIN `1234`) when empty; single-flight to prevent duplicate rows on concurrent logins; seeds PRD Apps registry via dynamic import.
+- Registry: seed PRD defaults (STOKIS, MYSHIFT, MYCUSTOMER, MYHR) when Apps tab empty; tab resolution reads `TABS.apps`.
+- Logout: revoke session server-side (`revokeSessionById`) before clearing cookie (PRD: logout must invalidate session).
+- Employees sheet: deduped to unique `emp_001`/`002`/`003`; lock counters cleared after smoke.
+- `readSheet`: no longer swallows API errors (quota 429 used to return `[]`, re-seeding duplicates and failing revoke checks).
 - SA Editor share verified (direct Sheets API read/write OK).
+- Runtime smoke: **25/25 pass** against prod (`http://127.0.0.1:3001`); Sheets free tier is 60 read/min — avoid rapid re-runs.
+
+## Next up
+Optional Phase 4 per PRD: Notifications, Global Search, Announcement, System Status, Recent/Favorite Apps, Activity, Cross-App Deep Linking.
