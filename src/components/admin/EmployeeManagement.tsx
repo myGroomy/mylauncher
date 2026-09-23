@@ -23,7 +23,7 @@ export function EmployeeManagement() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Employee>>({ status: "ACTIVE" });
-  const [pinForm, setPinForm] = useState<{ id: string; pin: string } | null>(null);
+  const [pinForm, setPinForm] = useState<{ id: string } | null>(null);
 
   function reset() {
     setEditingId(null);
@@ -55,8 +55,8 @@ export function EmployeeManagement() {
   }
 
   function handleResetPin() {
-    if (!pinForm || !pinForm.pin) return;
-    const result = resetEmployeePin(pinForm.id, pinForm.pin);
+    if (!pinForm) return;
+    const result = resetEmployeePin(pinForm.id);
     toast[result.success ? "success" : "error"](result.message);
     if (result.success) setPinForm(null);
   }
@@ -122,8 +122,8 @@ export function EmployeeManagement() {
               <Lock className="h-4 w-4" /> Reset PIN for {pinForm.id}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex gap-2">
-            <Input type="password" value={pinForm.pin} onChange={(e) => setPinForm({ ...pinForm, pin: e.target.value })} placeholder="New PIN" />
+          <CardContent className="flex gap-2 items-center">
+            <p className="text-sm text-ink-soft">Request PIN reset via Sheets admin.</p>
             <Button onClick={handleResetPin}>Reset</Button>
             <Button variant="outline" onClick={() => setPinForm(null)}>Cancel</Button>
           </CardContent>
@@ -159,7 +159,7 @@ export function EmployeeManagement() {
                       <Button variant="ghost" size="icon" className="text-ash hover:text-ink" onClick={() => startEdit(emp)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-ash hover:text-amber" onClick={() => setPinForm({ id: emp.employee_id, pin: "" })}>
+                      <Button variant="ghost" size="icon" className="text-ash hover:text-amber" onClick={() => setPinForm({ id: emp.employee_id })}>
                         <Lock className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => toggleEmployeeStatus(emp.employee_id)}>

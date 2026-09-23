@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 
 export function LauncherDashboard() {
   const apps = useDomainStore((s) => s.apps);
-  const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
   const setApps = useDomainStore((s) => s.setApps);
@@ -33,7 +32,7 @@ export function LauncherDashboard() {
     return () => { cancelled = true; };
   }, [isAuthenticated, setApps]);
 
-  const displayApps = isAuthenticated ? getAccessibleApps() : apps;
+  const displayApps = isAuthenticated ? apps : [];
 
   function handleOpenApp(app: App) {
     if (app.status !== "ACTIVE") return;

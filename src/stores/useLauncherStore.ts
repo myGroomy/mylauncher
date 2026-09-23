@@ -2,14 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { App, Employee, Role, Permission, AuditLogEntry, Branch, Shift, ScheduleEntry, WorkContext } from "@/lib/types";
 
-function hashPin(pin: string): string {
-  let hash = 0;
-  for (let i = 0; i < pin.length; i++) {
-    const char = pin.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return `hashed_${Math.abs(hash).toString(36)}`;
+export interface SessionUser {
+  employee: Employee;
+  roleId: string;
+  roleName: string;
+  permissions: string[];
+  expiresAt: number;
 }
 
 function genId(prefix = "log"): string {
@@ -19,31 +17,29 @@ function genId(prefix = "log"): string {
 interface AuthState {
   isAuthenticated: boolean;
   employeeId: string | null;
-  sessionToken: string | null;
+  roleId: string | null;
+  roleName: string | null;
+  permissions: string[];
   sessionExpiry: number | null;
-  failedAttempts: number;
-  lockUntil: number | null;
 }
 
 interface DomainState extends AuthState {
   apps: App[];
   employees: Employee[];
   roles: Role[];
-  permissions: Permission[];
+  permissionsCatalog: Permission[];
   branches: Branch[];
   shifts: Shift[];
   schedules: ScheduleEntry[];
   activeEmployee: Employee | null;
   auditLog: AuditLogEntry[];
 
-  login: (employeeId: string, pin: string) => { success: boolean; message: string };
-  hydrateSession: (employee: Employee) => void;
+  hydrateSession: (session: SessionUser) => void;
   setApps: (apps: App[]) => void;
   logout: () => void;
   getAccessibleApps: () => App[];
-  getSession: () => { token: string | null; expiresAt: number | null; isValid: boolean };
-  isLocked: () => boolean;
-  getRemainingAttempts: () => number;
+  getSession: () => { expiresAt: number | null; isValid: boolean };
+  hasPermission: (key: string) => boolean;
   getEmployeeById: (id: string) => Employee | undefined;
   getAuditLog: () => AuditLogEntry[];
   updateRole: (roleId: string, permissions: string[]) => void;
@@ -55,7 +51,7 @@ interface DomainState extends AuthState {
   createEmployee: (employee: Omit<Employee, "employee_id"> & { employee_id?: string }) => { success: boolean; message: string };
   updateEmployee: (employeeId: string, updates: Partial<Omit<Employee, "employee_id">>) => { success: boolean; message: string };
   toggleEmployeeStatus: (employeeId: string) => void;
-  resetEmployeePin: (employeeId: string, pin: string) => { success: boolean; message: string };
+  resetEmployeePin: (employeeId: string) => { success: boolean; message: string };
 
   // Role CRUD
   createRole: (role: Omit<Role, "role_id"> & { role_id?: string }) => { success: boolean; message: string };
@@ -116,10 +112,6 @@ const MOCK_EMPLOYEES: Employee[] = [
   { employee_id: "emp_003", name: "Read Only", role: "role_viewer", status: "ACTIVE", base_branch: "branch_cimahi" },
 ];
 
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCK_DURATION_MS = 5 * 60 * 1000;
-const SESSION_DURATION_MS = 60 * 60 * 1000;
-
 function addLog(state: DomainState, action: string, employeeId: string | null, details: string): AuditLogEntry[] {
   const entry: AuditLogEntry = { id: genId(), timestamp: Date.now(), action, employeeId, details };
   return [...state.auditLog, entry];
@@ -136,75 +128,31 @@ export const useDomainStore = create<DomainState>()(
       ],
       employees: MOCK_EMPLOYEES,
       roles: MOCK_ROLES,
-      permissions: MOCK_PERMISSIONS,
+      permissionsCatalog: MOCK_PERMISSIONS,
       branches: MOCK_BRANCHES,
       shifts: MOCK_SHIFTS,
       schedules: MOCK_SCHEDULES,
       activeEmployee: null,
       isAuthenticated: false,
       employeeId: null,
-      sessionToken: null,
+      roleId: null,
+      roleName: null,
+      permissions: [],
       sessionExpiry: null,
-      failedAttempts: 0,
-      lockUntil: null,
       auditLog: [],
 
-      login: (employeeId, pin) => {
-        const state = get();
-
-        if (state.isLocked()) {
-          const mins = Math.ceil((state.lockUntil! - Date.now()) / 60000);
-          set({ auditLog: addLog(state, "LOGIN_BLOCKED", null, `Account locked for ${mins} min`) });
-          return { success: false, message: `Account locked. Try again in ${mins} minutes.` };
-        }
-
-        const emp = state.employees.find((e) => e.employee_id === employeeId);
-        if (!emp) {
-          const newFailed = state.failedAttempts + 1;
-          const lockUntil = newFailed >= MAX_FAILED_ATTEMPTS ? Date.now() + LOCK_DURATION_MS : null;
-          set({ failedAttempts: newFailed, lockUntil, auditLog: addLog(state, "LOGIN_FAIL", employeeId, "Invalid employee ID or PIN") });
-          return { success: false, message: "Invalid employee ID or PIN" };
-        }
-
-        if (emp.status !== "ACTIVE") {
-          set({ auditLog: addLog(state, "LOGIN_FAIL", employeeId, "Account is inactive") });
-          return { success: false, message: "Account is inactive. Contact your administrator." };
-        }
-
-        const pinHashes = (get() as unknown as Record<string, Record<string, string>>).__MOCK_PIN_HASHES || {};
-        if (pinHashes[employeeId] !== hashPin(pin)) {
-          const newFailed = state.failedAttempts + 1;
-          const lockUntil = newFailed >= MAX_FAILED_ATTEMPTS ? Date.now() + LOCK_DURATION_MS : null;
-          set({ failedAttempts: newFailed, lockUntil, auditLog: addLog(state, "LOGIN_FAIL", employeeId, "Invalid PIN") });
-          return { success: false, message: "Invalid employee ID or PIN" };
-        }
-
-        const token = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        const expiresAt = Date.now() + SESSION_DURATION_MS;
+      hydrateSession: (session) => {
         set({
           isAuthenticated: true,
-          employeeId,
-          activeEmployee: emp,
-          sessionToken: token,
-          sessionExpiry: expiresAt,
-          failedAttempts: 0,
-          lockUntil: null,
-          auditLog: addLog(state, "LOGIN_SUCCESS", employeeId, `Logged in as ${emp.name}`),
-        });
-
-        return { success: true, message: "Login successful" };
-      },
-
-      hydrateSession: (employee) => {
-        set({
-          isAuthenticated: true,
-          employeeId: employee.employee_id,
-          activeEmployee: employee,
-          sessionToken: "server-session",
-          sessionExpiry: Date.now() + SESSION_DURATION_MS,
-          employees: get().employees.some((item) => item.employee_id === employee.employee_id)
-            ? get().employees.map((item) => item.employee_id === employee.employee_id ? { ...item, ...employee } : item)
-            : [...get().employees, employee],
+          employeeId: session.employee.employee_id,
+          roleId: session.roleId,
+          roleName: session.roleName,
+          permissions: session.permissions,
+          sessionExpiry: session.expiresAt,
+          activeEmployee: session.employee,
+          employees: get().employees.some((item) => item.employee_id === session.employee.employee_id)
+            ? get().employees.map((item) => item.employee_id === session.employee.employee_id ? { ...item, ...session.employee } : item)
+            : [...get().employees, session.employee],
         });
       },
 
@@ -212,38 +160,43 @@ export const useDomainStore = create<DomainState>()(
 
       logout: () => {
         const state = get();
-        set({ isAuthenticated: false, employeeId: null, activeEmployee: null, sessionToken: null, sessionExpiry: null, auditLog: addLog(state, "LOGOUT", state.employeeId, "Session terminated") });
+        set({
+          isAuthenticated: false,
+          employeeId: null,
+          activeEmployee: null,
+          roleId: null,
+          roleName: null,
+          permissions: [],
+          sessionExpiry: null,
+          auditLog: addLog(state, "LOGOUT", state.employeeId, "Session terminated"),
+        });
       },
 
       revokeSession: () => {
         const state = get();
-        set({ isAuthenticated: false, sessionToken: null, sessionExpiry: null, auditLog: addLog(state, "SESSION_REVOKED", state.employeeId, "Session manually revoked") });
+        set({
+          isAuthenticated: false,
+          roleId: null,
+          roleName: null,
+          permissions: [],
+          sessionExpiry: null,
+          auditLog: addLog(state, "SESSION_REVOKED", state.employeeId, "Session manually revoked"),
+        });
       },
 
       getAccessibleApps: () => {
-        const { activeEmployee, roles, apps } = get();
+        const { activeEmployee, permissions, apps } = get();
         if (!activeEmployee) return [];
-        const role = roles.find((r) => r.role_id === activeEmployee.role);
-        if (!role) return [];
-        const allowedKeys = role.permissions;
-        return apps.filter((app) => app.status === "ACTIVE" && allowedKeys.includes(app.required_permission));
+        return apps.filter((app) => app.status === "ACTIVE" && permissions.includes(app.required_permission));
       },
 
       getSession: () => {
-        const { sessionToken, sessionExpiry } = get();
-        if (!sessionToken || !sessionExpiry) return { token: null, expiresAt: null, isValid: false };
-        return { token: sessionToken, expiresAt: sessionExpiry, isValid: Date.now() < sessionExpiry };
+        const { sessionExpiry } = get();
+        if (!sessionExpiry) return { expiresAt: null, isValid: false };
+        return { expiresAt: sessionExpiry, isValid: Date.now() < sessionExpiry };
       },
 
-      isLocked: () => {
-        const { lockUntil } = get();
-        return lockUntil !== null && Date.now() < lockUntil;
-      },
-
-      getRemainingAttempts: () => {
-        const { failedAttempts } = get();
-        return Math.max(0, MAX_FAILED_ATTEMPTS - failedAttempts);
-      },
+      hasPermission: (key) => get().permissions.includes(key),
 
       getEmployeeById: (id) => {
         return get().employees.find((e) => e.employee_id === id);
@@ -302,15 +255,13 @@ export const useDomainStore = create<DomainState>()(
         set({ employees: updatedEmployees, auditLog: addLog(state, target?.status === "ACTIVE" ? "USER_ACTIVATED" : "USER_DEACTIVATED", employeeId, `Toggled status for ${employeeId}`) });
       },
 
-      resetEmployeePin: (employeeId, pin) => {
+      resetEmployeePin: (employeeId) => {
         const state = get();
         if (!state.employees.some((e) => e.employee_id === employeeId)) {
           return { success: false, message: "Employee not found" };
         }
-        const next = { ...((get() as unknown as Record<string, Record<string, string>>).__MOCK_PIN_HASHES || {}), [employeeId]: hashPin(pin) };
-        (set as (partial: Record<string, unknown>) => void)({ __MOCK_PIN_HASHES: next });
-        set({ auditLog: addLog(get(), "PIN_RESET", employeeId, `PIN reset for ${employeeId}`) });
-        return { success: true, message: "PIN reset successful" };
+        set({ auditLog: addLog(state, "PIN_RESET", employeeId, `PIN reset requested for ${employeeId}`) });
+        return { success: true, message: "PIN reset requested (Sheets admin)" };
       },
 
       createRole: (role) => {
@@ -332,12 +283,12 @@ export const useDomainStore = create<DomainState>()(
       createPermission: (permission) => {
         const state = get();
         const key = permission.key.trim();
-        if (state.permissions.some((p) => p.key === key)) {
+        if (state.permissionsCatalog.some((p) => p.key === key)) {
           return { success: false, message: "Permission key already exists" };
         }
         const id = permission.permission_id?.trim() || genId("perm");
         const newPermission: Permission = { permission_id: id, key, description: permission.description };
-        set({ permissions: [...state.permissions, newPermission], auditLog: addLog(state, "PERMISSION_CREATED", state.employeeId, `Created permission ${key}`) });
+        set({ permissionsCatalog: [...state.permissionsCatalog, newPermission], auditLog: addLog(state, "PERMISSION_CREATED", state.employeeId, `Created permission ${key}`) });
         return { success: true, message: "Permission created" };
       },
 
@@ -345,7 +296,7 @@ export const useDomainStore = create<DomainState>()(
         const state = get();
         const cleanedRoles = state.roles.map((r) => ({ ...r, permissions: r.permissions.filter((p) => p !== permissionKey) }));
         set({
-          permissions: state.permissions.filter((p) => p.key !== permissionKey),
+          permissionsCatalog: state.permissionsCatalog.filter((p) => p.key !== permissionKey),
           roles: cleanedRoles,
           auditLog: addLog(state, "PERMISSION_DELETED", state.employeeId, `Deleted permission ${permissionKey}`),
         });
@@ -402,7 +353,3 @@ export const useDomainStore = create<DomainState>()(
     { name: "mochikin-domain-storage" }
   )
 );
-
-// Seed mock PIN hashes outside store so they do not need to be persisted
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(useDomainStore as any).setState({ __MOCK_PIN_HASHES: { emp_001: hashPin("1234"), emp_002: hashPin("1234"), emp_003: hashPin("1234") } });

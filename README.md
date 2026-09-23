@@ -168,14 +168,23 @@ src/
 
 ## Data & Persistence
 
-The MVP uses server-side Supabase persistence for employee identity, roles, permissions,
-sessions, and audit data. The Google Spreadsheet Registry is read server-side through a
-service account. Zustand is retained only for non-sensitive UI/cache state; PINs, service
-role keys, and session secrets must never be stored in browser localStorage.
+The app runs in full Google Sheets mode: employee identity, roles, permissions, audit
+logs, and the app registry all live in one spreadsheet (multi-tab: `Employees`, `Roles`,
+`Permissions`, `AuditLogs`, plus the registry tab). Access is server-side via a Google
+service account. Zustand is retained only for non-sensitive UI/cache state; PINs,
+service account keys, and session secrets must never be stored in browser localStorage.
 
-Copy `.env.example` to `.env.local` and configure the server-only credentials before
-running the application. Apply `supabase/migrations/001_launcher_mvp.sql` before using
-the server login route.
+Copy `.env.example` to `.env.local` and configure server-only credentials before running
+the application. Share the spreadsheet with the service account email as **Editor**
+(needed to create tabs, append audit rows, and update lock state).
+
+Seed a PIN hash with:
+
+```bash
+node scripts/generate-pin-hash.mjs 1234
+```
+
+Paste the output into the `pin_hash` column of the `Employees` tab.
 
 ## Design Tokens
 

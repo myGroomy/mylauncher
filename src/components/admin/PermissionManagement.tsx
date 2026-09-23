@@ -11,7 +11,7 @@ import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function PermissionManagement() {
-  const permissions = useDomainStore((s) => s.permissions);
+  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
   const createPermission = useDomainStore((s) => s.createPermission);
   const deletePermission = useDomainStore((s) => s.deletePermission);
   const [key, setKey] = useState("");
@@ -65,7 +65,7 @@ export function PermissionManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline">
-                {permissions.map((perm) => (
+                {permissionsCatalog.map((perm) => (
                   <tr key={perm.key} className="hover:bg-secondary/50">
                     <td className="py-2 text-xs font-mono text-ink">
                       <Badge variant="secondary" className="text-xs">{perm.key}</Badge>

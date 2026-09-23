@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export function RoleAdministration() {
   const roles = useDomainStore((s) => s.roles);
-  const permissions = useDomainStore((s) => s.permissions);
+  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
   const updateRole = useDomainStore((s) => s.updateRole);
   const createRole = useDomainStore((s) => s.createRole);
   const deleteRole = useDomainStore((s) => s.deleteRole);
@@ -92,7 +92,7 @@ export function RoleAdministration() {
                   <div className="space-y-2">
                     <p className="text-xs text-ink-soft">Toggle permissions:</p>
                     <div className="flex flex-wrap gap-2">
-                      {permissions.map((p) => (
+                      {permissionsCatalog.map((p) => (
                         <Button
                           key={p.key}
                           variant={selectedPerms.includes(p.key) ? "default" : "outline"}

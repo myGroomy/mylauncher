@@ -10,7 +10,7 @@ export function AdminDashboard() {
   const auditLog = useDomainStore((s) => s.getAuditLog());
   const employees = useDomainStore((s) => s.employees);
   const roles = useDomainStore((s) => s.roles);
-  const permissions = useDomainStore((s) => s.permissions);
+  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
   const apps = useDomainStore((s) => s.apps);
   const getAuditLog = useDomainStore((s) => s.getAuditLog);
 
@@ -55,7 +55,7 @@ export function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-ink">{permissions.length}</p>
+              <p className="text-3xl font-bold text-ink">{permissionsCatalog.length}</p>
               <p className="text-xs text-ink-soft mt-1">Access keys</p>
             </CardContent>
           </Card>

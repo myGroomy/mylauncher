@@ -18,6 +18,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
+  const roleName = useDomainStore((s) => s.roleName);
   const logout = useDomainStore((s) => s.logout);
   const getSession = useDomainStore((s) => s.getSession);
   const [now, setNow] = useState(0);
@@ -58,7 +59,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               </div>
               <div className="hidden sm:block">
                 <p className="text-xs font-medium text-ink leading-none">{activeEmployee.name}</p>
-                <Badge variant="secondary" className="text-[10px]">{activeEmployee.role}</Badge>
+                <Badge variant="secondary" className="text-[10px]">{roleName || activeEmployee.role}</Badge>
               </div>
             </div>
             <div className="hidden md:flex items-center gap-1">

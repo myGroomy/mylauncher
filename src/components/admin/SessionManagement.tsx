@@ -9,9 +9,9 @@ import { toast } from "sonner";
 
 export function SessionManagement() {
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
-  const sessionToken = useDomainStore((s) => s.sessionToken);
   const sessionExpiry = useDomainStore((s) => s.sessionExpiry);
   const employeeId = useDomainStore((s) => s.employeeId);
+  const roleName = useDomainStore((s) => s.roleName);
   const revokeSession = useDomainStore((s) => s.revokeSession);
   const getSession = useDomainStore((s) => s.getSession);
 
@@ -45,10 +45,10 @@ export function SessionManagement() {
               <span className="text-ink font-mono text-xs">{employeeId}</span>
             </div>
           )}
-          {sessionToken && (
+          {roleName && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-mist">Token:</span>
-              <span className="text-ink font-mono text-xs truncate max-w-xs">{sessionToken}</span>
+              <span className="text-mist">Role:</span>
+              <span className="text-ink text-xs">{roleName}</span>
             </div>
           )}
           {sessionExpiry && (

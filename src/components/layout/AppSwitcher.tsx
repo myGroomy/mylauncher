@@ -16,8 +16,12 @@ import { useRouter } from "next/navigation";
 
 export function AppSwitcher() {
   const router = useRouter();
-  const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
-  const apps = getAccessibleApps();
+  const apps = useDomainStore((s) => s.apps);
+  const permissions = useDomainStore((s) => s.permissions);
+  const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
+  const accessibleApps = isAuthenticated
+    ? apps.filter((app) => app.status === "ACTIVE" && permissions.includes(app.required_permission))
+    : [];
 
   return (
     <DropdownMenu>
@@ -33,10 +37,10 @@ export function AppSwitcher() {
         <DropdownMenuGroup>
           <DropdownMenuLabel>Applications</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {apps.length === 0 ? (
+          {accessibleApps.length === 0 ? (
             <DropdownMenuItem disabled>No apps available</DropdownMenuItem>
           ) : (
-            apps.map((app) => (
+            accessibleApps.map((app) => (
               <DropdownMenuItem
                 key={app.app_id}
                 onClick={() => router.push(`/launcher/${app.app_id.toLowerCase()}`)}

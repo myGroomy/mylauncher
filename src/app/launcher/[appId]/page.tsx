@@ -1,94 +1,31 @@
-"use client";
-
-import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/server/session";
+import { getRegistryApps } from "@/lib/server/registry";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExternalLink, Lock } from "lucide-react";
-import { toast } from "sonner";
+import { AppLaunchView } from "@/components/launcher/AppLaunchView";
 
-export default function AppIdPage({ params }: { params: Promise<{ appId: string }> }) {
-  const router = useRouter();
-  const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
-  const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
-  const getSession = useDomainStore((s) => s.getSession);
-  const [tick, setTick] = useState(0);
-  const [appId, setAppId] = useState<string | null>(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const session = useMemo(() => getSession(), [getSession, tick]);
+export default async function AppIdPage({ params }: { params: Promise<{ appId: string }> }) {
+  const { appId: rawAppId } = await params;
+  const session = await getSession();
+  if (!session) redirect("/");
 
-  useEffect(() => {
-    params.then((p) => setAppId(p.appId.toUpperCase()));
-  }, [params]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTick((t) => t + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const sessionValid = session.isValid;
-  const accessibleApps = isAuthenticated ? getAccessibleApps() : [];
-
-  useEffect(() => {
-    if (!isAuthenticated || !sessionValid) {
-      router.replace("/");
-    }
-  }, [isAuthenticated, sessionValid, router]);
-
-  useEffect(() => {
-    if (!sessionValid && isAuthenticated) {
-      toast.info("Session expired. Please sign in again.");
-      router.replace("/");
-    }
-  }, [sessionValid, isAuthenticated, router]);
-
-  if (!appId || !isAuthenticated || !sessionValid) {
-    return null;
+  const appId = rawAppId.toUpperCase();
+  let apps: Awaited<ReturnType<typeof getRegistryApps>> = [];
+  try {
+    apps = await getRegistryApps();
+  } catch {
+    apps = [];
   }
 
-  const currentApp = accessibleApps.find((a) => a.app_id === appId);
+  const app = apps.find((item) => item.app_id === appId);
+  const authorized =
+    !!app &&
+    app.status === "ACTIVE" &&
+    session.permissions.includes(app.required_permission);
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
-        {currentApp && currentApp.status === "ACTIVE" ? (
-          <div className="text-center space-y-4">
-            <Card className="max-w-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">{currentApp.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <a
-                  href={currentApp.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open {currentApp.name}
-                </a>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <div className="text-center space-y-4">
-            <Lock className="h-12 w-12 text-mist mx-auto" />
-            <h2 className="text-xl font-bold text-ink">Access Denied</h2>
-            <p className="text-ink-soft">
-              You do not have permission to access this application.
-            </p>
-            <button
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted"
-              onClick={() => router.push("/launcher")}
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        )}
-      </div>
+      <AppLaunchView app={authorized && app ? app : null} appId={appId} />
     </AppShell>
   );
 }

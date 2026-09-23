@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Lock, User } from "lucide-react";
 import { toast } from "sonner";
 
 export function LoginStub() {
+  const router = useRouter();
   const [employeeId, setEmployeeId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -30,18 +32,35 @@ export function LoginStub() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ employeeId, pin }),
         });
-        const result = await response.json() as { message?: string; employee?: {
-          employee_id: string;
-          name: string;
-          role: string;
-          status: string;
-          base_branch: string;
-        } };
-        if (!response.ok || !result.employee) {
+        const result = await response.json() as {
+          message?: string;
+          employee?: {
+            employee_id: string;
+            name: string;
+            role: string;
+            status: string;
+            base_branch: string;
+          };
+          session?: {
+            roleId: string;
+            roleName: string;
+            permissions: string[];
+            expiresAt: number;
+          };
+        };
+        if (!response.ok || !result.employee || !result.session) {
           throw new Error(result.message || "Unable to sign in");
         }
-        hydrateSession(result.employee);
+        hydrateSession({
+          employee: result.employee,
+          roleId: result.session.roleId,
+          roleName: result.session.roleName,
+          permissions: result.session.permissions,
+          expiresAt: result.session.expiresAt,
+        });
         toast.success("Login successful");
+        router.push("/launcher");
+        router.refresh();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unable to sign in";
         setError(message);
@@ -67,7 +86,7 @@ export function LoginStub() {
                 id="employeeId"
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="emp_001"
+                placeholder="Employee ID"
                 className="pl-10"
               />
             </div>

@@ -17,7 +17,7 @@ const APP_STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
 
 export function AppManagement() {
   const apps = useDomainStore((s) => s.apps);
-  const permissions = useDomainStore((s) => s.permissions);
+  const permissionsCatalog = useDomainStore((s) => s.permissionsCatalog);
   const createApp = useDomainStore((s) => s.createApp);
   const updateApp = useDomainStore((s) => s.updateApp);
   const deleteApp = useDomainStore((s) => s.deleteApp);
@@ -75,7 +75,7 @@ export function AppManagement() {
                 <SelectValue placeholder="Required permission" />
               </SelectTrigger>
               <SelectContent>
-                {permissions.map((p) => (
+                {permissionsCatalog.map((p) => (
                   <SelectItem key={p.key} value={p.key}>{p.key}</SelectItem>
                 ))}
               </SelectContent>

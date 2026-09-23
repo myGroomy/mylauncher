@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useDomainStore } from "@/stores/useLauncherStore";
+import { useDomainStore, type SessionUser } from "@/stores/useLauncherStore";
 
 const LOGOUT_EVENT = "mochikin-logout";
 
@@ -9,7 +9,6 @@ export function useSessionSync() {
   const logout = useDomainStore((s) => s.logout);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const hydrateSession = useDomainStore((s) => s.hydrateSession);
-  const getEmployeeById = useDomainStore((s) => s.getEmployeeById);
 
   useEffect(() => {
     void fetch("/api/auth/session")
@@ -18,12 +17,12 @@ export function useSessionSync() {
           if (isAuthenticated) logout();
           return;
         }
-        const result = await response.json() as { session?: {
-          employeeId: string;
-          roleId: string;
-        } };
-        const employee = result.session?.employeeId ? getEmployeeById(result.session.employeeId) : undefined;
-        if (employee) hydrateSession({ ...employee, role: result.session?.roleId || employee.role });
+        const result = await response.json() as { session?: SessionUser & { employeeId: string } };
+        if (result.session?.employee) {
+          hydrateSession(result.session);
+        } else if (isAuthenticated) {
+          logout();
+        }
       })
       .catch(() => {
         if (isAuthenticated) logout();
@@ -58,7 +57,7 @@ export function useSessionSync() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(LOGOUT_EVENT, handleBroadcast);
     };
-  }, [logout, isAuthenticated, hydrateSession, getEmployeeById]);
+  }, [logout, isAuthenticated, hydrateSession]);
 }
 
 export function broadcastLogout() {

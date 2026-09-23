@@ -7,12 +7,12 @@ import { Shield, User, Building } from "lucide-react";
 
 export function Profile() {
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
-  const roles = useDomainStore((s) => s.roles);
+  const roleName = useDomainStore((s) => s.roleName);
+  const permissions = useDomainStore((s) => s.permissions);
   const branches = useDomainStore((s) => s.branches);
 
   if (!activeEmployee) return null;
 
-  const role = roles.find((r) => r.name === activeEmployee.role);
   const baseBranch = branches.find((b) => b.branch_id === activeEmployee.base_branch);
 
   return (
@@ -34,7 +34,7 @@ export function Profile() {
         </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="text-mist">Role:</span>
-          <Badge variant="secondary" className="text-xs">{activeEmployee.role}</Badge>
+          <Badge variant="secondary" className="text-xs">{roleName || activeEmployee.role}</Badge>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="text-mist">Status:</span>
@@ -45,20 +45,16 @@ export function Profile() {
             {activeEmployee.status}
           </Badge>
         </div>
-        {baseBranch && (
-          <div className="flex items-center gap-2 text-sm">
-            <Building className="h-3.5 w-3.5 text-mist" />
-            <span className="text-mist">Base Branch:</span>
-            <span className="text-ink text-xs">{baseBranch.name}</span>
-          </div>
-        )}
-        {role && (
-          <div className="flex items-center gap-2 text-sm">
-            <Shield className="h-3.5 w-3.5 text-mist" />
-            <span className="text-mist">Permissions:</span>
-            <span className="text-ink text-xs">{role.permissions.length} granted</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-sm">
+          <Building className="h-3.5 w-3.5 text-mist" />
+          <span className="text-mist">Base Branch:</span>
+          <span className="text-ink text-xs">{baseBranch?.name || activeEmployee.base_branch || "—"}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <Shield className="h-3.5 w-3.5 text-mist" />
+          <span className="text-mist">Permissions:</span>
+          <span className="text-ink text-xs">{permissions.length} granted</span>
+        </div>
       </CardContent>
     </Card>
   );

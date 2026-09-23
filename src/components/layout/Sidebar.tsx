@@ -34,12 +34,14 @@ interface SidebarProps {
 
 export function Sidebar({ isMobileOpen }: SidebarProps) {
   const apps = useDomainStore((s) => s.apps);
-  const getAccessibleApps = useDomainStore((s) => s.getAccessibleApps);
+  const permissions = useDomainStore((s) => s.permissions);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
-  const activeEmployee = useDomainStore((s) => s.activeEmployee);
+  const roleId = useDomainStore((s) => s.roleId);
 
-  const accessibleApps = isAuthenticated ? getAccessibleApps() : apps;
-  const isAdmin = isAuthenticated && activeEmployee?.role === "role_admin";
+  const accessibleApps = isAuthenticated
+    ? apps.filter((app) => app.status === "ACTIVE" && permissions.includes(app.required_permission))
+    : [];
+  const isAdmin = isAuthenticated && roleId === "role_admin";
 
   return (
     <aside

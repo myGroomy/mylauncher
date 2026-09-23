@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { getServerEnv } from "./env";
+import { getSessionEnv } from "./env";
 
 const COOKIE_NAME = "mochikin_launcher_session";
 const SESSION_SECONDS = Number(process.env.SESSION_EXPIRES_IN_SECONDS || 3600);
@@ -15,7 +15,7 @@ export interface SessionPayload {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", getServerEnv().sessionSecret).update(value).digest("base64url");
+  return createHmac("sha256", getSessionEnv().sessionSecret).update(value).digest("base64url");
 }
 
 function encode(payload: SessionPayload): string {
@@ -41,7 +41,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   return value ? decode(value) : null;
 }
 
-export async function setSession(payload: Omit<SessionPayload, "expiresAt">) {
+export async function setSession(payload: Omit<SessionPayload, "expiresAt">): Promise<number> {
   const expiresAt = Date.now() + SESSION_SECONDS * 1000;
   (await cookies()).set(COOKIE_NAME, encode({ ...payload, expiresAt }), {
     httpOnly: true,
@@ -50,6 +50,7 @@ export async function setSession(payload: Omit<SessionPayload, "expiresAt">) {
     path: "/",
     maxAge: SESSION_SECONDS,
   });
+  return expiresAt;
 }
 
 export async function clearSession() {
