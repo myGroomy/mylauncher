@@ -24,9 +24,11 @@ import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider"
 
 interface HeaderProps {
   onMenuClick: () => void;
+  mobileOpen?: boolean;
+  menuButtonRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, mobileOpen = false, menuButtonRef }: HeaderProps) {
   const router = useRouter();
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
@@ -70,13 +72,17 @@ export function Header({ onMenuClick }: HeaderProps) {
   return (
     <header className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-hairline bg-surface">
       <Button
+        ref={menuButtonRef}
         variant="ghost"
         size="icon"
         className="lg:hidden text-ash hover:text-ink"
         onClick={onMenuClick}
         aria-label="Open navigation menu"
+        aria-expanded={mobileOpen}
+        aria-controls="primary-navigation"
+        disabled={mobileOpen}
       >
-        <Menu className="h-5 w-5" />
+        <Menu className="h-5 w-5" aria-hidden="true" />
       </Button>
 
       <div className="flex-1" />
@@ -104,7 +110,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                         {roleName || activeEmployee.role}
                       </span>
                     </span>
-                    <ChevronDown className="h-3.5 w-3.5 text-mist" />
+                    <ChevronDown className="h-3.5 w-3.5 text-mist" aria-hidden="true" />
                   </Button>
                 }
               />

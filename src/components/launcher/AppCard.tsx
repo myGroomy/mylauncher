@@ -83,7 +83,7 @@ export function AppCard({ app, index = 0, onClick, favorite = false, onToggleFav
                   animate={favorite && !reduceMotion ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                   transition={{ duration: feedbackDuration, ease: [0.4, 0, 0, 1] }}
                 >
-                  <Star className={`h-4 w-4 ${favorite ? "fill-amber text-amber" : ""}`} />
+                  <Star className={`h-4 w-4 ${favorite ? "fill-amber text-amber" : ""}`} aria-hidden="true" />
                 </motion.span>
               </Button>
             )}
@@ -101,7 +101,12 @@ export function AppCard({ app, index = 0, onClick, favorite = false, onToggleFav
               {isActive ? "Available" : app.status === "MAINTENANCE" ? "Maintenance" : "Locked"}
             </span>
             {isActive ? (
-              <Button size="sm" className="h-9 rounded-full px-4" onClick={() => onClick(app)}>
+              <Button
+                size="sm"
+                className="h-9 rounded-full px-4"
+                onClick={() => onClick(app)}
+                aria-label={`Open ${app.name}`}
+              >
                 Open <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             ) : (

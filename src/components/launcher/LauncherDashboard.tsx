@@ -98,7 +98,7 @@ export function LauncherDashboard() {
       )}
 
       {isAuthenticated && features.announcements && visibleAnnouncements.length > 0 && (
-        <div className="space-y-2" aria-label="Announcements">
+        <section aria-label="Announcements" className="space-y-2">
           {visibleAnnouncements.map((a) => (
             <Card
               key={a.announcement_id}
@@ -126,13 +126,14 @@ export function LauncherDashboard() {
                   size="sm"
                   className="h-7 shrink-0 px-2 text-[11px] text-ink-soft"
                   onClick={() => dismissAnnouncement(a.announcement_id)}
+                  aria-label={`Dismiss announcement: ${a.title}`}
                 >
                   Dismiss
                 </Button>
               </CardContent>
             </Card>
           ))}
-        </div>
+        </section>
       )}
 
       {isAuthenticated &&
@@ -199,11 +200,18 @@ export function LauncherDashboard() {
           All applications
         </h2>
         {registryLoading && isAuthenticated ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4" aria-busy="true">
+          <div
+            className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">Loading applications…</span>
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
                 className="h-44 animate-pulse rounded-lg border border-hairline bg-surface"
+                aria-hidden="true"
               />
             ))}
           </div>

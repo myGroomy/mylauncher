@@ -27,8 +27,8 @@ export function AppSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-ash hover:text-ink">
-            <LayoutGrid className="h-4 w-4" />
+          <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-ash hover:text-ink" aria-label="Open applications switcher">
+            <LayoutGrid className="h-4 w-4" aria-hidden="true" />
             <span className="text-sm">MOCHIKIN APPS</span>
           </Button>
         }
@@ -47,7 +47,7 @@ export function AppSwitcher() {
                 className="flex items-center justify-between cursor-pointer"
               >
                 <span>{app.name}</span>
-                <ExternalLink className="h-3 w-3 text-mist" />
+                <ExternalLink className="h-3 w-3 text-mist" aria-hidden="true" />
               </DropdownMenuItem>
             ))
           )}

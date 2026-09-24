@@ -31,9 +31,11 @@ function formatWhen(iso: string): string {
 }
 
 function severityIcon(severity: Announcement["severity"]) {
-  if (severity === "critical") return <AlertOctagon className="h-3.5 w-3.5 text-rose shrink-0" />;
-  if (severity === "warning") return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" />;
-  return <Info className="h-3.5 w-3.5 text-accent shrink-0" />;
+  if (severity === "critical")
+    return <AlertOctagon className="h-3.5 w-3.5 text-rose shrink-0" aria-hidden="true" />;
+  if (severity === "warning")
+    return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" aria-hidden="true" />;
+  return <Info className="h-3.5 w-3.5 text-accent shrink-0" aria-hidden="true" />;
 }
 
 export function NotificationBell() {
@@ -90,7 +92,7 @@ export function NotificationBell() {
           />
         }
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-4 w-4" aria-hidden="true" />
         {unreadCount > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose px-1 text-[10px] font-bold text-white"
@@ -111,7 +113,7 @@ export function NotificationBell() {
                 className="h-7 text-xs gap-1"
                 onClick={handleReadAll}
               >
-                <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+                    <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" /> Mark all read
               </Button>
             )}
           </SheetTitle>
@@ -139,6 +141,7 @@ export function NotificationBell() {
                           size="sm"
                           className="h-6 px-2 text-[10px] text-ink-soft"
                           onClick={() => dismissAnnouncement(a.announcement_id)}
+                          aria-label={`Dismiss announcement: ${a.title}`}
                         >
                           Dismiss
                         </Button>

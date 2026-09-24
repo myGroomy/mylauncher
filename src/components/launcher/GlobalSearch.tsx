@@ -63,7 +63,7 @@ export function GlobalSearch() {
         size="icon"
         className="text-ash hover:text-ink sm:hidden"
         onClick={() => setOpen(true)}
-        aria-label="Search apps"
+        aria-label="Search applications"
       >
         <Search className="h-4 w-4" aria-hidden="true" />
       </Button>

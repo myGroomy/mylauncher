@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { forwardRef } from "react";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
 import {
@@ -22,6 +24,7 @@ import {
   ScrollText,
   Megaphone,
   BookOpen,
+  X,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -51,7 +54,10 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
+export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
+  { isMobileOpen, onMobileClose },
+  ref
+) {
   const pathname = usePathname();
   const apps = useDomainStore((s) => s.apps);
   const permissions = useDomainStore((s) => s.permissions);
@@ -97,17 +103,31 @@ export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
 
   return (
     <aside
+      ref={ref}
+      id="primary-navigation"
       className={cn(
         "flex flex-col w-64 h-full bg-surface border-r border-hairline",
-        isMobileOpen ? "fixed inset-0 z-50" : "hidden lg:flex"
+        isMobileOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:flex"
       )}
       aria-label="Primary navigation"
+      {...(isMobileOpen ? { role: "dialog", "aria-modal": true as const } : {})}
     >
       <div className="flex items-center gap-2 px-5 py-4 border-b border-hairline">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
           <span className="text-sm font-bold" aria-hidden="true">M</span>
         </div>
         <span className="text-base font-bold text-ink">MOCHIKIN LAUNCHER</span>
+        {isMobileOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto h-9 w-9 text-ash hover:text-ink lg:hidden"
+            onClick={onMobileClose}
+            aria-label="Close navigation menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="flex-1 px-3 py-3">
@@ -167,7 +187,7 @@ export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
       </ScrollArea>
     </aside>
   );
-}
+});
 
 function SidebarLink({
   href,

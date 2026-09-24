@@ -80,9 +80,14 @@ export function LoginStub() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <span className="text-sm text-ink-soft">Username</span>
+            <label htmlFor="username" className="text-sm text-ink-soft">
+              Username
+            </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mist" />
+              <User
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mist"
+                aria-hidden="true"
+              />
               <Input
                 id="username"
                 value={username}
@@ -90,26 +95,42 @@ export function LoginStub() {
                 placeholder="Username"
                 className="pl-10"
                 autoComplete="username"
+                required
+                aria-invalid={error ? true : undefined}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <span className="text-sm text-ink-soft">PIN</span>
+            <label htmlFor="pin" className="text-sm text-ink-soft">
+              PIN
+            </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mist" />
+              <Lock
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mist"
+                aria-hidden="true"
+              />
               <Input
                 id="pin"
                 type="password"
+                inputMode="numeric"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="••••"
                 className="pl-10"
+                autoComplete="current-password"
+                required
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </div>
           </div>
 
-          {error && <p className="text-sm text-rose">{error}</p>}
+          {error && (
+          <p id="login-error" className="text-sm text-rose" role="alert">
+            {error}
+          </p>
+        )}
 
           <Button type="submit" className="w-full">
             Sign In
