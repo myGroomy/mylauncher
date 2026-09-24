@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Megaphone, Plus, Trash2, Pencil } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 
 const SEVERITIES: AnnouncementSeverity[] = ["info", "warning", "critical"];
@@ -36,6 +37,8 @@ export function AnnouncementManagement() {
   const { announcements, loading, error, create, update, remove } = useAnnouncements();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -77,10 +80,19 @@ export function AnnouncementManagement() {
     });
   }
 
-  async function handleDelete(id: string) {
-    const result = await remove(id);
-    toast[result.success ? "success" : "error"](result.message);
-    if (editingId === id) resetForm();
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const result = await remove(deleteTarget);
+      toast[result.success ? "success" : "error"](result.message);
+      if (result.success) {
+        if (editingId === deleteTarget) resetForm();
+        setDeleteTarget(null);
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) return <p className="text-sm text-ink-soft">Loading announcements…</p>;
@@ -217,7 +229,8 @@ export function AnnouncementManagement() {
                         variant="ghost"
                         size="icon"
                         className="text-ash hover:text-rose"
-                        onClick={() => handleDelete(item.announcement_id)}
+                        aria-label={`Delete announcement ${item.title}`}
+                        onClick={() => setDeleteTarget(item.announcement_id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -236,6 +249,16 @@ export function AnnouncementManagement() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete announcement?"
+        description="The announcement will be removed for all audiences. This cannot be undone."
+        confirmLabel="Delete"
+        busy={busy}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

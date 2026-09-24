@@ -20,6 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div
             className="fixed inset-0 z-40 bg-ink/30 lg:hidden"
             onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
           />
         )}
 
@@ -27,7 +28,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Header onMenuClick={() => setMobileOpen(true)} />
 
           <ScrollArea className="flex-1">
-            <main className="px-6 py-6">{children}</main>
+            <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+              {children}
+            </main>
           </ScrollArea>
         </div>
       </div>

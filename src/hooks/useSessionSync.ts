@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useDomainStore, type SessionUser } from "@/stores/useLauncherStore";
 
 const LOGOUT_EVENT = "mochikin-logout";
@@ -12,6 +13,8 @@ export function useSessionSync() {
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const hydrateSession = useDomainStore((s) => s.hydrateSession);
   const isAuthenticatedRef = useRef(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
@@ -20,23 +23,31 @@ export function useSessionSync() {
   useEffect(() => {
     let cancelled = false;
 
+    function endSession() {
+      if (!isAuthenticatedRef.current) return;
+      logout();
+      const isProtected =
+        pathname.startsWith("/launcher") || pathname.startsWith("/admin");
+      if (isProtected) router.replace("/");
+    }
+
     async function syncFromServer() {
       try {
         const response = await fetch("/api/auth/sso");
         if (cancelled) return;
         if (!response.ok) {
-          if (isAuthenticatedRef.current) logout();
+          endSession();
           return;
         }
-        const result = await response.json() as {
+        const result = (await response.json()) as {
           authenticated?: boolean;
           session?: SessionUser;
         };
         if (cancelled) return;
         if (result.authenticated && result.session?.employee) {
           hydrateSession(result.session);
-        } else if (isAuthenticatedRef.current) {
-          logout();
+        } else {
+          endSession();
         }
       } catch {
         // Network blip: keep current client state until next poll.
@@ -51,26 +62,23 @@ export function useSessionSync() {
     function handleStorage(e: StorageEvent) {
       if (e.key !== "mochikin-domain-storage") return;
       if (!e.newValue) {
-        if (isAuthenticatedRef.current) logout();
+        endSession();
         return;
       }
       try {
         const parsed = JSON.parse(e.newValue) as { state?: { isAuthenticated?: boolean } };
-        if (!parsed.state?.isAuthenticated && isAuthenticatedRef.current) {
-          logout();
-        }
+        if (!parsed.state?.isAuthenticated) endSession();
       } catch {
         // ignore malformed storage data
       }
     }
 
     function handleBroadcast() {
-      if (isAuthenticatedRef.current) logout();
+      endSession();
     }
 
-    const channel = typeof BroadcastChannel !== "undefined"
-      ? new BroadcastChannel(BROADCAST_CHANNEL)
-      : null;
+    const channel =
+      typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(BROADCAST_CHANNEL) : null;
     if (channel) {
       channel.onmessage = (event: MessageEvent) => {
         if (event.data === "logout") handleBroadcast();
@@ -87,7 +95,7 @@ export function useSessionSync() {
       window.removeEventListener(LOGOUT_EVENT, handleBroadcast);
       channel?.close();
     };
-  }, [logout, hydrateSession]);
+  }, [logout, hydrateSession, pathname, router]);
 }
 
 export function broadcastLogout() {

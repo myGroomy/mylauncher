@@ -1,15 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { AppSwitcher } from "@/components/layout/AppSwitcher";
 import { GlobalSearch } from "@/components/launcher/GlobalSearch";
 import { NotificationBell } from "@/components/launcher/NotificationBell";
-import { Menu } from "lucide-react";
+import { Menu, User, Clock, LogOut, ChevronDown, Shield, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, User, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { broadcastLogout } from "@/hooks/useSessionSync";
 import { useFeatureSettings } from "@/components/layout/FeatureSettingsProvider";
@@ -19,9 +27,11 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const router = useRouter();
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
   const activeEmployee = useDomainStore((s) => s.activeEmployee);
   const roleName = useDomainStore((s) => s.roleName);
+  const roleId = useDomainStore((s) => s.roleId);
   const logout = useDomainStore((s) => s.logout);
   const getSession = useDomainStore((s) => s.getSession);
   const [now, setNow] = useState(0);
@@ -36,51 +46,118 @@ export function Header({ onMenuClick }: HeaderProps) {
     return () => clearInterval(interval);
   }, [getSession]);
 
-  const minutesLeft = sessionInfo.isValid && sessionInfo.expiresAt
-    ? Math.ceil((sessionInfo.expiresAt - now) / 60000)
-    : 0;
+  const minutesLeft =
+    sessionInfo.isValid && sessionInfo.expiresAt
+      ? Math.ceil((sessionInfo.expiresAt - now) / 60000)
+      : 0;
+
+  function handleLogout() {
+    void fetch("/api/auth/logout", { method: "POST" });
+    toast.info("Signed out");
+    logout();
+    broadcastLogout();
+    router.push("/");
+  }
+
+  const initials = activeEmployee?.name
+    ? activeEmployee.name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("")
+    : "?";
 
   return (
-    <header className="flex items-center gap-4 px-6 py-3 border-b border-hairline bg-surface">
+    <header className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-hairline bg-surface">
       <Button
         variant="ghost"
         size="icon"
         className="lg:hidden text-ash hover:text-ink"
         onClick={onMenuClick}
+        aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
       </Button>
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {features.global_search && <GlobalSearch />}
         <AppSwitcher />
         {isAuthenticated && activeEmployee && (
-          <div className="flex items-center gap-2">
+          <>
             {features.notifications && <NotificationBell />}
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs font-medium text-ink leading-none">{activeEmployee.name}</p>
-                <Badge variant="secondary" className="text-[10px]">{roleName || activeEmployee.role}</Badge>
-              </div>
-            </div>
-            <div className="hidden md:flex items-center gap-1">
-              <Clock className="h-3 w-3 text-ink-soft" />
-              <span className="text-xs font-mono text-ink-soft">{minutesLeft}m</span>
-            </div>
-            <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => {
-              void fetch("/api/auth/logout", { method: "POST" });
-              toast.info("Signed out");
-              logout();
-              broadcastLogout();
-            }}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    className="h-9 gap-2 px-2 text-ash hover:text-ink"
+                    aria-label="Account menu"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-wash text-[10px] font-bold text-accent-deep">
+                      {initials}
+                    </span>
+                    <span className="hidden sm:flex flex-col items-start leading-none">
+                      <span className="text-xs font-medium text-ink">{activeEmployee.name}</span>
+                      <span className="text-[10px] text-mist">
+                        {roleName || activeEmployee.role}
+                      </span>
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 text-mist" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-ink">{activeEmployee.name}</span>
+                  <span className="text-xs font-normal text-mist">@{activeEmployee.username}</span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-mist">
+                      <Shield className="h-3 w-3" /> Role
+                    </span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {roleName || activeEmployee.role}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-mist">
+                      <User className="h-3 w-3" /> ID
+                    </span>
+                    <span className="font-mono text-ink">{activeEmployee.employee_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-mist">
+                      <Clock className="h-3 w-3" /> Session
+                    </span>
+                    <span className={`font-mono ${sessionInfo.isValid ? "text-ink" : "text-rose"}`}>
+                      {sessionInfo.isValid ? `${minutesLeft}m left` : "expired"}
+                    </span>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                {roleId === "role_admin" && (
+                  <DropdownMenuItem
+                    className="cursor-pointer text-ink"
+                    onClick={() => router.push("/admin")}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Admin console
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="cursor-pointer text-rose focus:text-rose"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         )}
         <ThemeToggle />
       </div>

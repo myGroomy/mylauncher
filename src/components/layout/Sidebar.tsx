@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +29,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "calendar-days": CalendarDays,
   users: Users,
   building: Building,
+  "building-columns": Building,
   "layout-grid": LayoutGrid,
   MoreHorizontal,
 };
@@ -36,7 +39,20 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
-export function Sidebar({ isMobileOpen }: SidebarProps) {
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  exact?: boolean;
+}
+
+function isActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
+  const pathname = usePathname();
   const apps = useDomainStore((s) => s.apps);
   const permissions = useDomainStore((s) => s.permissions);
   const isAuthenticated = useDomainStore((s) => s.isAuthenticated);
@@ -48,95 +64,103 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
     : [];
   const isAdmin = isAuthenticated && roleId === "role_admin";
 
+  const mainNav: NavItem[] = [
+    { href: "/launcher", label: "Dashboard", icon: <LayoutGrid className="h-4 w-4" />, exact: true },
+    { href: "/docs", label: "Documentation", icon: <BookOpen className="h-4 w-4" /> },
+  ];
+
+  const adminNav: NavItem[] = isAdmin
+    ? [
+        { href: "/admin", label: "Overview", icon: <Settings className="h-4 w-4" />, exact: true },
+        { href: "/admin/employees", label: "Employees", icon: <Users className="h-4 w-4" /> },
+        ...(features.admin_roles
+          ? [{ href: "/admin/roles", label: "Roles", icon: <Shield className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        ...(features.admin_permissions
+          ? [{ href: "/admin/permissions", label: "Permissions", icon: <KeyRound className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        ...(features.admin_apps
+          ? [{ href: "/admin/apps", label: "Applications", icon: <AppWindow className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        ...(features.admin_announcements
+          ? [{ href: "/admin/announcements", label: "Announcements", icon: <Megaphone className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        ...(features.admin_sessions
+          ? [{ href: "/admin/sessions", label: "Sessions", icon: <LogOut className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        ...(features.admin_audit
+          ? [{ href: "/admin/audit", label: "Audit Log", icon: <ScrollText className="h-4 w-4" /> } satisfies NavItem]
+          : []),
+        { href: "/admin/settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
+      ]
+    : [];
+
   return (
     <aside
       className={cn(
         "flex flex-col w-64 h-full bg-surface border-r border-hairline",
         isMobileOpen ? "fixed inset-0 z-50" : "hidden lg:flex"
       )}
+      aria-label="Primary navigation"
     >
       <div className="flex items-center gap-2 px-5 py-4 border-b border-hairline">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
-          <span className="text-sm font-bold">M</span>
+          <span className="text-sm font-bold" aria-hidden="true">M</span>
         </div>
         <span className="text-base font-bold text-ink">MOCHIKIN LAUNCHER</span>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-3">
-        <nav className="space-y-0.5">
-          <SidebarButton
-            icon={<LayoutGrid className="h-4 w-4" />}
-            label="Dashboard"
-            href="/launcher"
-          />
-          <SidebarButton
-            icon={<BookOpen className="h-4 w-4" />}
-            label="Documentation"
-            href="/docs"
-          />
+        <nav className="space-y-0.5" aria-label="Main">
+          <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-mist">
+            Launcher
+          </p>
+          {mainNav.map((item) => (
+            <SidebarLink
+              key={item.href}
+              {...item}
+              active={isActive(pathname, item.href, item.exact)}
+              onNavigate={onMobileClose}
+            />
+          ))}
 
-          <Separator className="my-2 bg-hairline" />
-
-          {accessibleApps.map((app) => {
-            const Icon = ICON_MAP[app.icon || "MoreHorizontal"] || MoreHorizontal;
-            return (
-              <SidebarButton
-                key={app.app_id}
-                icon={<Icon className="h-4 w-4" />}
-                label={app.name}
-                href={`/launcher/${app.app_id}`}
-              />
-            );
-          })}
-
-          {isAdmin && (
+          {accessibleApps.length > 0 && (
             <>
               <Separator className="my-2 bg-hairline" />
-              <SidebarButton
-                icon={<Settings className="h-4 w-4" />}
-                label="Admin"
-                href="/admin"
-              />
-              <SidebarButton
-                icon={<Users className="h-4 w-4" />}
-                label="Employees"
-                href="/admin/employees"
-              />
-              {features.admin_roles && <SidebarButton
-                icon={<Shield className="h-4 w-4" />}
-                label="Roles"
-                href="/admin/roles"
-              />}
-              {features.admin_permissions && <SidebarButton
-                icon={<KeyRound className="h-4 w-4" />}
-                label="Permissions"
-                href="/admin/permissions"
-              />}
-              {features.admin_apps && <SidebarButton
-                icon={<AppWindow className="h-4 w-4" />}
-                label="Applications"
-                href="/admin/apps"
-              />}
-              {features.admin_announcements && <SidebarButton
-                icon={<Megaphone className="h-4 w-4" />}
-                label="Announcements"
-                href="/admin/announcements"
-              />}
-              {features.admin_sessions && <SidebarButton
-                icon={<LogOut className="h-4 w-4" />}
-                label="Sessions"
-                href="/admin/sessions"
-              />}
-              {features.admin_audit && <SidebarButton
-                icon={<ScrollText className="h-4 w-4" />}
-                label="Audit Log"
-                href="/admin/audit"
-              />}
-              <SidebarButton
-                icon={<Settings className="h-4 w-4" />}
-                label="Settings"
-                href="/admin/settings"
-              />
+              <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-mist">
+                Applications
+              </p>
+              {accessibleApps.map((app) => {
+                const Icon = ICON_MAP[app.icon || "MoreHorizontal"] || MoreHorizontal;
+                const href = `/launcher/${app.app_id.toLowerCase()}`;
+                return (
+                  <SidebarLink
+                    key={app.app_id}
+                    href={href}
+                    label={app.name}
+                    icon={<Icon className="h-4 w-4" />}
+                    active={isActive(pathname, href)}
+                    onNavigate={onMobileClose}
+                  />
+                );
+              })}
+            </>
+          )}
+
+          {isAdmin && adminNav.length > 0 && (
+            <>
+              <Separator className="my-2 bg-hairline" />
+              <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-mist">
+                Administration
+              </p>
+              {adminNav.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  {...item}
+                  active={isActive(pathname, item.href, item.exact)}
+                  onNavigate={onMobileClose}
+                />
+              ))}
             </>
           )}
         </nav>
@@ -145,22 +169,33 @@ export function Sidebar({ isMobileOpen }: SidebarProps) {
   );
 }
 
-function SidebarButton({
-  icon,
-  label,
+function SidebarLink({
   href,
+  label,
+  icon,
+  active,
+  onNavigate,
 }: {
-  icon: React.ReactNode;
-  label: string;
   href: string;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onNavigate?: () => void;
 }) {
   return (
-    <a
+    <Link
       href={href}
-      className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-ash hover:bg-secondary hover:text-ink rounded-lg transition-colors"
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+        active
+          ? "bg-accent-wash text-accent-deep"
+          : "text-ash hover:bg-secondary hover:text-ink"
+      )}
     >
       {icon}
       {label}
-    </a>
+    </Link>
   );
 }

@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Plus, Trash2, Save, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 
 export function RoleAdministration() {
@@ -17,6 +18,8 @@ export function RoleAdministration() {
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
   const [newRoleName, setNewRoleName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const startEdit = (roleId: string, currentPerms: string[]) => {
     setEditingRole(roleId);
@@ -49,9 +52,16 @@ export function RoleAdministration() {
     if (result.success) setNewRoleName("");
   }
 
-  async function handleDelete(roleId: string) {
-    const result = await remove(roleId);
-    toast[result.success ? "success" : "error"](result.message);
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const result = await remove(deleteTarget);
+      toast[result.success ? "success" : "error"](result.message);
+      if (result.success) setDeleteTarget(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) return <p className="text-sm text-ink-soft">Loading roles…</p>;
@@ -118,7 +128,13 @@ export function RoleAdministration() {
                     <Button variant="outline" size="sm" onClick={() => startEdit(role.role_id, role.permissions)}>
                       Edit Permissions
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-ash hover:text-rose" onClick={() => handleDelete(role.role_id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-ash hover:text-rose"
+                      aria-label={`Delete role ${role.name}`}
+                      onClick={() => setDeleteTarget(role.role_id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -129,6 +145,16 @@ export function RoleAdministration() {
           {roles.length === 0 && <p className="text-sm text-ink-soft">No roles yet.</p>}
         </div>
       </ScrollArea>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete role?"
+        description="Employees with this role will lose its permissions. This cannot be undone."
+        confirmLabel="Delete"
+        busy={busy}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

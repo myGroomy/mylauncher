@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useDomainStore } from "@/stores/useLauncherStore";
 import { useAdminSessions } from "@/hooks/useAdminApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Shield, LogOut, Ban } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,17 +19,27 @@ export function SessionManagement() {
   const revokeSession = useDomainStore((s) => s.revokeSession);
   const getSession = useDomainStore((s) => s.getSession);
   const { sessions, loading, error, revoke } = useAdminSessions();
+  const [confirm, setConfirm] = useState<"self" | string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const session = getSession();
 
   function handleRevokeSelf() {
     revokeSession();
     toast.info("Session revoked");
+    setConfirm(null);
   }
 
-  async function handleRevoke(id: string) {
-    const result = await revoke(id);
-    toast[result.success ? "success" : "error"](result.message);
+  async function handleRevoke() {
+    if (!confirm || confirm === "self") return;
+    setBusy(true);
+    try {
+      const result = await revoke(confirm);
+      toast[result.success ? "success" : "error"](result.message);
+      if (result.success) setConfirm(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -66,7 +78,7 @@ export function SessionManagement() {
             </div>
           )}
           {session.isValid && (
-            <Button variant="outline" size="sm" className="text-rose" onClick={handleRevokeSelf}>
+            <Button variant="outline" size="sm" className="text-rose" onClick={() => setConfirm("self")}>
               <LogOut className="h-4 w-4 mr-2" /> Revoke My Session
             </Button>
           )}
@@ -109,7 +121,7 @@ export function SessionManagement() {
                       </td>
                       <td className="py-2">
                         {s.active && (
-                          <Button variant="ghost" size="sm" className="text-ash hover:text-rose" onClick={() => handleRevoke(s.session_id)}>
+                          <Button variant="ghost" size="sm" className="text-ash hover:text-rose" onClick={() => setConfirm(s.session_id)}>
                             Revoke
                           </Button>
                         )}
@@ -139,6 +151,23 @@ export function SessionManagement() {
           </p>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        title={confirm === "self" ? "Revoke my session?" : "Revoke session?"}
+        description={
+          confirm === "self"
+            ? "You will be signed out immediately."
+            : "The active session will be invalidated across all tabs."
+        }
+        confirmLabel="Revoke"
+        busy={busy}
+        onConfirm={() => {
+          if (confirm === "self") handleRevokeSelf();
+          else void handleRevoke();
+        }}
+      />
     </div>
   );
 }

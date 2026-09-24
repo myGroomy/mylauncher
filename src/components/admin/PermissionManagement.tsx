@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 
 export function PermissionManagement() {
   const { permissions, loading, error, create, remove } = usePermissions();
   const [key, setKey] = useState("");
   const [description, setDescription] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -27,9 +30,16 @@ export function PermissionManagement() {
     }
   }
 
-  async function handleDelete(permKey: string) {
-    const result = await remove(permKey);
-    toast[result.success ? "success" : "error"](result.message);
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const result = await remove(deleteTarget);
+      toast[result.success ? "success" : "error"](result.message);
+      if (result.success) setDeleteTarget(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) return <p className="text-sm text-ink-soft">Loading permissions…</p>;
@@ -78,7 +88,13 @@ export function PermissionManagement() {
                     </td>
                     <td className="py-2 text-sm text-ink">{perm.description}</td>
                     <td className="py-2">
-                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => handleDelete(perm.key)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-ash hover:text-rose"
+                        aria-label={`Delete permission ${perm.key}`}
+                        onClick={() => setDeleteTarget(perm.key)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -94,6 +110,16 @@ export function PermissionManagement() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete permission?"
+        description={`The permission "${deleteTarget}" will be removed from roles that use it. This cannot be undone.`}
+        confirmLabel="Delete"
+        busy={busy}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

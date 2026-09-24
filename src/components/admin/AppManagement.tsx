@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppWindow, Plus, Trash2, Pencil } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 
 const APP_ICONS = ["package", "calendar-days", "users", "building", "layout-grid"];
@@ -21,6 +22,8 @@ export function AppManagement() {
 
   const [form, setForm] = useState<Partial<App>>({ status: "ACTIVE", icon: "layout-grid" });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   function resetForm() {
     setForm({ status: "ACTIVE", icon: "layout-grid" });
@@ -49,9 +52,16 @@ export function AppManagement() {
     setForm({ ...app });
   }
 
-  async function handleDelete(appId: string) {
-    const result = await remove(appId);
-    toast[result.success ? "success" : "error"](result.message);
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      const result = await remove(deleteTarget);
+      toast[result.success ? "success" : "error"](result.message);
+      if (result.success) setDeleteTarget(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) return <p className="text-sm text-ink-soft">Loading apps…</p>;
@@ -142,7 +152,13 @@ export function AppManagement() {
                       <Button variant="ghost" size="icon" className="text-ash hover:text-ink" onClick={() => startEdit(app)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-ash hover:text-rose" onClick={() => handleDelete(app.app_id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-ash hover:text-rose"
+                        aria-label={`Delete app ${app.name}`}
+                        onClick={() => setDeleteTarget(app.app_id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -158,6 +174,16 @@ export function AppManagement() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete application?"
+        description="The app will be removed from the launcher registry. Deep links to it will stop working."
+        confirmLabel="Delete"
+        busy={busy}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

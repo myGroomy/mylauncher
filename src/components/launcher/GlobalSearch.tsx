@@ -13,6 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { getAppDisplay } from "@/components/launcher/AppCard";
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
@@ -40,17 +41,18 @@ export function GlobalSearch() {
 
   function go(appId: string) {
     setOpen(false);
-    router.push(`/launcher/${appId}`);
+    router.push(`/launcher/${appId.toLowerCase()}`);
   }
 
   return (
     <>
       <Button
         variant="outline"
-        className="hidden sm:flex h-8 gap-2 text-ash text-xs"
+        className="hidden h-8 gap-2 text-xs text-ash sm:flex"
         onClick={() => setOpen(true)}
+        aria-label="Search applications"
       >
-        <Search className="h-3.5 w-3.5" />
+        <Search className="h-3.5 w-3.5" aria-hidden="true" />
         Search
         <kbd className="pointer-events-none ml-1 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
           <span className="text-xs">⌘</span>K
@@ -59,27 +61,36 @@ export function GlobalSearch() {
       <Button
         variant="ghost"
         size="icon"
-        className="sm:hidden text-ash hover:text-ink"
+        className="text-ash hover:text-ink sm:hidden"
         onClick={() => setOpen(true)}
         aria-label="Search apps"
       >
-        <Search className="h-4 w-4" />
+        <Search className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <CommandDialog open={open} onOpenChange={setOpen} title="Search applications" description="Find and open an application">
+      <CommandDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Search applications"
+        description="Find and open an application"
+      >
         <CommandInput placeholder="Type an app name or ID…" />
         <CommandList>
           <CommandEmpty>No applications found.</CommandEmpty>
           <CommandGroup heading="Applications">
-            {accessible.map((app) => (
-              <CommandItem
-                key={app.app_id}
-                value={`${app.name} ${app.app_id}`}
-                onSelect={() => go(app.app_id)}
-              >
-                <span>{app.name}</span>
-                <span className="text-xs text-muted-foreground">{app.app_id}</span>
-              </CommandItem>
-            ))}
+            {accessible.map((app) => {
+              const { Icon } = getAppDisplay(app.app_id, app.name);
+              return (
+                <CommandItem
+                  key={app.app_id}
+                  value={`${app.name} ${app.app_id}`}
+                  onSelect={() => go(app.app_id)}
+                >
+                  <Icon className="h-4 w-4 text-mist" aria-hidden="true" />
+                  <span>{app.name}</span>
+                  <span className="text-xs text-muted-foreground">{app.app_id}</span>
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         </CommandList>
       </CommandDialog>
