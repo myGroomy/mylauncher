@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run build",
     "smoke:prod": "node scripts/smoke-prod.mjs",
@@ -22,9 +22,9 @@
     "cmdk": "^1.1.1",
     "cn": "^0.3.0",
     "framer-motion": "^13.4.0",
-    "googleapis": "^181.0.0",
-    "lucide-react": "^1.47.0",
-    "next": "16.3.5",
+    "googleapis": "^182.0.0",
+    "lucide-react": "^1.48.0",
+    "next": "16.3.6",
     "next-themes": "^0.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -35,13 +35,13 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "eslint-config-next": "16.3.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~7.0.2"
   }
 }
